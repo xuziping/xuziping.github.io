@@ -5,7 +5,7 @@ baseurl:
 url: http://xuzp.tech
 date_format: "ordinal"
 title: 技术徐话
-subtitle: "打码改变人生"
+subtitle: "记几笔，证明曾经来过"
 description: "徐子平的个人博客"
 keywords: 技术徐话, Ziping Xu, xuziping
 timezone: Asia/Shanghai
@@ -20,7 +20,7 @@ organization:
 organization_url: 
 github_username: xuziping
 location: Shanghai, China
-email: 151485847@qq.com
+email: 151475847@qq.com
 
 # ---------------- #
 #    Navigation    #
