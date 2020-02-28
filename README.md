@@ -1,4 +1,4 @@
-# 码志
+# Readme
 
 我的个人博客：<http://xuzp.tech>，欢迎 Star 和 Fork。
 
