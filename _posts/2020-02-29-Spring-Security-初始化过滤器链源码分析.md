@@ -9,5 +9,5 @@ keywords: 读源码, Spring Security
 
 Spring Security通过过滤器链实现，简单的用户名密码的过滤器链如下图：
 
-![](images/20200229/filter_chain.png)
+![]({{site.url}}/images/posts/20200229/filter_chain.png)
 （图片来自网络）
