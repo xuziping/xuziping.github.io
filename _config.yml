@@ -5,8 +5,8 @@ baseurl:
 url: http://xuzp.tech
 date_format: "ordinal"
 title: 技术徐话
-subtitle: "记几笔，证明曾经来过"
-description: "徐子平的个人博客"
+subtitle: "闲话慢慢说"
+description: "心中无码"
 keywords: 技术徐话, Ziping Xu, xuziping
 timezone: Asia/Shanghai
 encoding: "utf-8"
