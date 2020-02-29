@@ -3,7 +3,7 @@ layout: page
 title: About
 description: 技术徐话
 keywords: ZiPing Xu, 徐子平
-comments: true
+comments: false
 menu: 关于
 permalink: /about/
 ---
@@ -14,13 +14,13 @@ permalink: /about/
 
 那就把沿途的风景记几笔下来。
 
-## 联系
+### 联系
 
 {% for website in site.data.social %}
 * {{ website.sitename }}：[@{{ website.name }}]({{ website.url }})
 {% endfor %}
-
-## Skill Keywords
+<!-- 
+### Skill Keywords
 
 {% for category in site.data.skills %}
 ### {{ category.name }}
@@ -29,4 +29,4 @@ permalink: /about/
 <button class="btn btn-outline" type="button">{{ keyword }}</button>
 {% endfor %}
 </div>
-{% endfor %}
+{% endfor %} -->
