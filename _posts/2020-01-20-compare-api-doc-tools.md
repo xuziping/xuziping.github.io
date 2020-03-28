@@ -28,7 +28,7 @@ keywords: API Doc,接口文档管理工具
 
 首先，对接口文档管理工具进行简单分类：
 
-![](images/posts/20200120/api_tool_categories.jpg)
+![]({{site.url}}/images/posts/20200120/api_tool_categories.jpg)
 
 
 ### 平台类
@@ -76,15 +76,15 @@ RAP官网的宣传语：
 
 界面如下：
 
-![](images/posts/20200120/rap_ui.jpg)
+![]({{site.url}}/images/posts/20200120/rap_ui.jpg)
 
 我们可以在官网看到它发展得很快，毕竟有阿里血统：
 
-![](images/posts/20200120/rap_grow_up.jpg)
+![]({{site.url}}/images/posts/20200120/rap_grow_up.jpg)
 
 RAP理想中的用户使用流程图：
 
-![](images/posts/20200120/rap_workflow.jpg)
+![]({{site.url}}/images/posts/20200120/rap_workflow.jpg)
 
 从流程图中可以看出RAP还是很有野心，它并不是把自己定义为一款接口文档管理工具，而是更希望它是一款基于接口的工作流管理平台，前后端可以在它平台上完成接口定义，联调，测试等一系列工作！
 
@@ -117,7 +117,7 @@ RAP理想中的用户使用流程图：
 
 > 用户要以其规定的格式进行书写标识接口的URL， Method，Request，Response等。如下：
 > 
-> 	![](images/posts/20200120/apidoc_code.jpg)
+> 	![]({{site.url}}/images/posts/20200120/apidoc_code.jpg)
 
 **总结**：
 
@@ -170,11 +170,11 @@ API Helper本质上就是补充 APIDOC 只是一个文档管理工具的缺憾�
 
 如何使用：
 
-> ![](images/posts/20200120/spring_rest_docs_code1.jpg)
+> ![]({{site.url}}/images/posts/20200120/spring_rest_docs_code1.jpg)
 > 
 > 新的注解是 @AutoConfigureRestDocs（来自 Spring Boot），该注解的参数作为生成代码片段的位，而新的断言是 MockMvcRestDocumentation.document() ，它的参数作为代码段的字符串标识符。
 > 
-> ![](images/posts/20200120/spring_rest_docs_code2.jpg)
+> ![]({{site.url}}/images/posts/20200120/spring_rest_docs_code2.jpg)
 > 
 > 我们可以在测试中向 document() 添加断言来创建其他代码段。例如，可以用 PayloadDocumentation.responseFields() 代码段记录JSON响应中的每个字段。
 
@@ -202,13 +202,13 @@ Spring REST Docs主要还是写这篇的时候进行了解，自己在项目中�
 
 	配合工具（Aglio） 可以生成有特定风格样式并且支持搜索的静态 html 文档
 
-	> ![](images/posts/20200120/blueprint_doc.jpg)
+	> ![]({{site.url}}/images/posts/20200120/blueprint_doc.jpg)
 
 * 生成Mock数据
 
 	配合工具（Drakov）可以生成启动 mock data 服务
 	
-	> ![](images/posts/20200120/blueprint_mock.jpg)
+	> ![]({{site.url}}/images/posts/20200120/blueprint_mock.jpg)
 
 **总结**：
 
@@ -226,7 +226,7 @@ Blueprint 作为一门类似Markdown的指定API文档格式的标记语言，�
 
 首先根据官网介绍，看下Swagger大家族都有哪些家伙：
 
-![](images/posts/20200120/swagger_family.jpg)
+![]({{site.url}}/images/posts/20200120/swagger_family.jpg)
 
 Swagger是一套围绕OpenAPI规范构建的开源工具，便于构建和使用API。常用的有Swagger UI， Swagger Editor 以及 Swagger Codegen，目前大部分项目仅仅使用了Swagger UI而已。
 
@@ -267,7 +267,7 @@ Swagger是一套围绕OpenAPI规范构建的开源工具，便于构建和使用
 	
 这是从网上找来的一张各个功能的使用关联图，可以参考下：
 
-![](images/posts/20200120/swagger_family2.jpg)
+![]({{site.url}}/images/posts/20200120/swagger_family2.jpg)
 
 有几点需要注意：
 
@@ -279,13 +279,13 @@ Swagger是一套围绕OpenAPI规范构建的开源工具，便于构建和使用
 
 * 最常使用的方式，即导入Springfox包，然后在Controller层代码里通过注解来生成文档。如下图：
 
-	![](images/posts/20200120/swagger_use_1.jpg)
+	![]({{site.url}}/images/posts/20200120/swagger_use_1.jpg)
 	
 	不过由于前后端分离开发，因此右半部分并没有形成一个循环，步骤6会被省去。前端以及测试开发人员会直接消费步骤5生成的文档；当后端接口有变动了，那就是步骤5直接跳到步骤7然后再进行循环。
 	
 * 还有一种理想情况下使用契约式开发的流程，如下图：
 
-	![](images/posts/20200120/swagger_use_2.jpg)
+	![]({{site.url}}/images/posts/20200120/swagger_use_2.jpg)
 	
 	契约就是基于Swagger OpenAPI Specification的Swagger说明文件。通过契约文件分别生成前后端代码，然后如第一种方式使用。
 	
@@ -308,7 +308,7 @@ Swagger可能是目前市场上做得最成功的一款已经形成生态圈的�
 
 ### 如何选取合适的接口工具
 
-![](images/posts/20200120/api_tools_age.jpg)
+![]({{site.url}}/images/posts/20200120/api_tools_age.jpg)
 
 在考虑选择哪一个工具去管理接口前，首先有一个**灵魂三问**：
 
@@ -320,11 +320,11 @@ Swagger可能是目前市场上做得最成功的一款已经形成生态圈的�
 
 这三个问题决定了文档是通过平台手工维护管理，或者源于代码注解，又或者基于契约，哪一个更适合当前的项目环境。我们先来比较下上文中介绍的工具各自的特点：
 
-![](images/posts/20200120/api_tools_status.jpg)
+![]({{site.url}}/images/posts/20200120/api_tools_status.jpg)
 
 然后我们根据自己项目组织的情况，来决定哪些特性是适合自己团队的：
 
-![](images/posts/20200120/org.jpg)
+![]({{site.url}}/images/posts/20200120/org.jpg)
 
 * 注释型文档保证了开发的效率，开发过程虽然可能会有点混乱，但开发人员可以快速响应变化
 * 契约式文档更侧重质量，并且往往和Mock Server一起结合使用
@@ -332,7 +332,7 @@ Swagger可能是目前市场上做得最成功的一款已经形成生态圈的�
 
 在了解了自己项目和团队的特性后，其实已经可以确认哪种接口管理方式更适合自己了，最后我们看下各种类型的接口管理方式的优缺点作为收尾吧：
 
-![](images/posts/20200120/api_tools_compare.jpg)
+![]({{site.url}}/images/posts/20200120/api_tools_compare.jpg)
 
 **总结**：
 
