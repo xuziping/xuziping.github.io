@@ -124,7 +124,9 @@ keywords: Kafka,Avro,项目手记
 问题找到了，Avro在Schema Registry下的结构体和之前用avro-tools auto-generated的结构体不一样了！
 
 
+
 ###【In Progress 之 Schema Registry下的AVRO消息体的反序列化】
+
 
 问题确定好，改起来就快了。首先引入avro serializer的JAR包：
 
