@@ -193,7 +193,7 @@ keywords: Kafka,Avro,项目手记
 
 看似已经万事大吉了~
 
-### 【Blocked 之 NOT AVRO 自生成消息体】
+### 【Blocked 之 脏数据】
 
 但是，跑了上面DEMO，却仍然报错。
 
