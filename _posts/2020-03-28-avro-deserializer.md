@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Kafka Avro格式的消息反序列化的两种方式
+title: Kafka Avro Message反序列化的两种方式
 categories: Kafka
 description: Kafka知识整理
 keywords: Kafka,Avro,项目手记
