@@ -125,7 +125,7 @@ keywords: Kafka,Avro,项目手记
 
 
 
-###【In Progress 之 Schema Registry下的AVRO消息体的反序列化】
+### 【In Progress 之 Schema Registry下的AVRO消息体的反序列化】
 
 
 问题确定好，改起来就快了。首先引入avro serializer的JAR包：
