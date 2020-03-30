@@ -65,11 +65,11 @@ keywords: Kafka,Avro,项目手记
 	 ]
 	}
 
-下载好avro-tools.jar之后，写一个schema文件，记得把schema中的namespace改成生成的代码要放在项目中的包路径，运行下面的命令，根据schema生成
+下载好avro-tools.jar之后，写一个schema文件，记得把schema中的namespace不要改动，运行下面的命令，根据schema生成
 
 `java -jar /path/to/avro-tools-1.9.2.jar compile schema <schema file> <destination>`
 
-工作中处理的Kakfa消息是基于Avro格式，看了下自己生成的代码，和之前消费其它Topic时第三方提供的JAR中的消息体代码是类似的，消息体中自带了Schema定义。把生成好的类拷到项目中。
+工作中处理的Kakfa消息是基于Avro格式，看了下自己生成的代码，和之前消费其它Topic时第三方提供的JAR中的消息体代码是类似的，消息体中自带了Schema定义。把生成好的类拷到项目对应schema的namespace的包路径下。
 
 把消费者配置中记得反序列化类改成ByteArrayDeserializer.class
 
@@ -136,10 +136,22 @@ keywords: Kafka,Avro,项目手记
 
     put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
     put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "https://XXXX");
+    put("specific.avro.reader", "true");
     ......
     KafkaConsumer<String, GenericRecord> consumer = new KafkaConsumer(properties);
     
-之后，在Kafka消费者类中直接消费ConsumerRecords<String, GenericRecord>就可以了。这是一个测试DEMO：
+如果有bad SSL credentials的报错，请加上：
+
+    System.setProperty("javax.net.ssl.keyStore", "xxxxx");
+    System.setProperty("javax.net.ssl.keyStorePassword", "xxxx");
+    
+虽然使用了Schema Regristry，但是还是需要使用avro-tools.jar生成相应的avro message dto的，并且把它们放到项目里schema中namespace对应的包路径下。命令如下：
+
+`java -jar /path/to/avro-tools-1.9.2.jar compile schema <schema file> <destination>`
+    
+之后，在Kafka消费者类中直接消费ConsumerRecords<String, GenericRecord>就可以了。
+
+这是一个测试DEMO：
 
     public class ConsumerTest {
           private static final Logger log = LoggerFactory.getLogger(ConsumerTest.class);
