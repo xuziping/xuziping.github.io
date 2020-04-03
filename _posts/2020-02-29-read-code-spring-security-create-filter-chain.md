@@ -1,32 +1,71 @@
 ---
 layout: post
-title: Spring Security初始化过滤器链源码分析
+title: Spring Security核心过滤器链创建部分的源码走读
 categories: 读源码
 description: Spring Security源码分析之一
-keywords: 读源码, ![](imagesSpring Security
+keywords: 读源码, Spring Security
 ---
 
+### Spring Security是什么
 
-Spring Security是Spring社区的一个顶级项目，也是Spring Boot官方推荐使用的Security框架。Spring Boot检测到Spring Security存在的时候会自动进行默认配置。
+> Spring Security是Spring社区的一个顶级项目，也是Spring Boot官方推荐使用的Security框架。
 
-Spring Security通过过滤器链实现，简单的过滤器链如下图：
+### Spring Security功能是什么
+> Spring Security功能主要就是**认证**和**授权**。
 
-![]({{site.url}}/images/posts/20200229/filter_chain.png)
+### Spring Security实现原理是什么
+
+> Spring Security的实现原理就是过**滤器链**，结构图如下：
+
+> ![]({{site.url}}/images/posts/20200229/filter_chain.png)
+
+> 先简单介绍下主要过滤器：
+
+> 1. SecurityContextPersistenceFilter
+
+> 	请求进入时，从配置好的 SecurityContextRepository 中获取 SecurityContext，把它塞给 SecurityContextHolder。在响应离开时，将 SecurityContextHolder 里的 SecurityContext 保存到SecurityContextRepository，并且清除 securityContextHolder 持有的 SecurityContext。
+
+> 2. UsernamePasswordAuthenticationFilter 
+> 	用来处理来自表单提交的用户名和密码的认证。内部还有成功和失败对应的 AuthenticationSuccessHandler 和 AuthenticationFailureHandler 处理。
+
+> 3. ExceptionTranslationFilter
+> 	能够捕获过滤器中的异常并且处理 AuthenticationException 和 AccessDeniedException。在处理异常前，它会先用 RequestCache 把当前的HttpServerletRequest的信息保存起来，使用户成功登陆后可以跳到之前页面。
+
+> 4. FilterSecurityInterceptor 
+> 	是用于保护Http 资源的
 
 
-接下去进入正题，我们通过跟踪源码，了解Spring Security是如果创建出这个过滤器链的。
+### 我们一般如何使用Spring Security
 
---
+> 自己写个配置类，继承自 WebSecurityConfigurerAdapter，重写几个configure()方法。
+
+
+***接下去进入正题，我们通过跟踪源码，了解Spring Security是如何创建出这个过滤器链的，好戏开场====>***
+
+---
+### Spring Security过滤器链的实现
+
+**剧透及摘要：**
+
+* Spring Security的核心过滤器链，名叫 **springSecurityFilterChain**, 类型是 **FilterChainProxy**
+*  **FilterChainProxy** 里是一个过滤器链（列表），名叫filterChains(不重要），类型是 **List<SecurityFilterChain>**，每个 **SecurityFilterChain** 都是一组URL匹配规则 + 一个Filter列表
+*  FilterChainProxy是 **WebSecurity** 去创建的（制造厂是 WebSecurityConfiguration)
+*  SecurityFilterChain 是 **HttpSecurity** 去创建的
+
+
+**DEBUG代码**
+
 我们在使用Spring Security时，通常会在Application启动类或者继承WebSecurityConfigurerAdapter的自定义配置类中加上 **@EnableWebSecurity**，这个注解就是我们这次源码分析的进入点。
 
-可以看到EnableWebSecurity中引入了WebSecurityConfiguraiton类，如图所示：
+可以看到EnableWebSecurity中引入了WebSecurityConfiguration类，如图所示：
 
 ![]({{site.url}}/images/posts/20200229/EnableWebSecurity.png)
 
---
-点开**WebSecurityConfiguration**类，可以看到这个类的介绍，它是通过一个WebSecurity去创建FilterChainProxy，Spring Security的核心就是过滤器，这个过滤器链名字叫"springSecurityFiltrChain"，类型就是FilterChainProxy。
+---
 
-WebSecurityConfiguration类中，主要关注两个方法，如方法名取的那样，springSecurityFilterChain()就是创建过滤器链，而setFilterChainProxySecurityConfigurer()则是为前者服务。
+点开**WebSecurityConfiguration**类，可以看到这个类的介绍，【重复一遍】：*“它是通过一个WebSecurity去创建FilterChainProxy，Spring Security的核心就是过滤器，这个过滤器链名字叫"springSecurityFilterChain"，类型就是FilterChainProxy”*。
+
+WebSecurityConfiguration类中，主要关注两个方法，如方法名取的那样，springSecurityFilterChain()就是创建过滤器链，而setFilterChainProxySecurityConfigurer()就是设过滤配置器。
 
 我们先看setFilterChainProxySecurityConfigurer()方法：
 
@@ -36,7 +75,7 @@ WebSecurityConfiguration类中，主要关注两个方法，如方法名取的�
 
 	如红框圈出，这个方法主要做了三件事：
 
-	1. 通过objectPostProcessor创建webSecuirty对象
+	1. **通过objectPostProcessor创建webSecurity对象** (容易被忽视)
 	2. 对传入的参数webSecurityConfigurers进行排序以及校验它们order注解的唯一性
 	3. 向第一步创建的webSecurity对象中依次添加第二步中的webSecruityConfigurers
 
@@ -48,11 +87,8 @@ WebSecurityConfiguration类中，主要关注两个方法，如方法名取的�
 	
 	2. 入参webSecurityConfigurers从哪里来？
 	
-		>  从BeanFactory中基于type收集所有的实现 WebSecurityConfigurer 接口的类。
+		>  从BeanFactory中基于type收集所有的实现 WebSecurityConfigurer 接口的类，**也即是所有自定义配置继承了 WebSecurityConfigurerAdapter的配置类实例**。换言之，我们可以简单认为所有 WebSecurityConfigurerAdapter的子类都被放入到了 WebSecurityConfiguration的 webSecurityConfigurers上。
 	
-	3. webSecurity.add(webSecurityConfigurer)的实现？
-
-		> todo	
 
   在理清webSecurityConfigurers的逻辑后，我们来看生成springSecurityFilterChain的实现：
 
@@ -62,12 +98,14 @@ WebSecurityConfiguration类中，主要关注两个方法，如方法名取的�
 
 	如上图代码，springSecurityFilterChain()方法中主要做两件事：
 	
-	1. 判断有没有webSecurityConfigurers（已经在上面的setFilterChainProxySecurityConfigurer方法中初始化），没有就新建一个webSecurityConfigurerAdapter（实现了webSecurityConfigurer接口），并且把它应用到webSecurity上，这部分逻辑就和setFilterChainProxySecurityConfigurer()中的逻辑一样。
+	1. 判断有没有webSecurityConfigurers（已经在上面的setFilterChainProxySecurityConfigurer方法中初始化），没有（用户没有自定义Spring Security的配置）就新建一个webSecurityConfigurerAdapter（实现了webSecurityConfigurer接口），并且把它应用到webSecurity上，这部分逻辑就和setFilterChainProxySecurityConfigurer()中的逻辑一样。
 	2.  关键在于webSecurity.build()上，创建真正的SpringSecurityFilterChain。
 
---
+***WebSecurityConfiguration类介绍得差不多了，留了个尾巴，我们进入WebSecurity看看====>***
 
-继续跟踪**WebSecurity**，点开webSecurity.build()，进入的是它的抽象类AbstractSecurityBuilder的build()方法实现中，代码如下：
+---
+
+开始Debug **WebSecurity**，点开webSecurity.build()，进入的是它的抽象类AbstractSecurityBuilder的build()方法实现中，代码如下：
 
 ![]({{site.url}}/images/posts/20200229/AbstractSecurityBuilder_build.png)
 
@@ -81,24 +119,21 @@ WebSecurityConfiguration类中，主要关注两个方法，如方法名取的�
 
 ![]({{site.url}}/images/posts/20200229/AbstractConfiguredSecurityBuilder_methods.png)
 
-我们先来看AbstractConfiguredSecurityBuilder抽象类中的init()方法，这个方法会进行两次迭代，把所有的SecurityConfigurer都遍历调用它们自己的init()方法。稍后我们会看到这些init()方法中又会创建httpSecurity以及调用httpSecurity的configure方法。
+我们先来看AbstractConfiguredSecurityBuilder抽象类中的init()方法，这个方法会进行两次迭代，把所有的SecurityConfigurer都遍历调用它们自己的init()方法。(稍后我们会看到这些init()方法中又会创建httpSecurity以及调用httpSecurity的configure方法)
 
-看到这里你也许会有困惑，对于WebSecurity，HttpSecurity等理不清它们的关系，我们这里整理一下：
+***WebSecurity介绍好了，然后我们进入WebSecurityConfigurerAdapter去看一看 httpSecurity是怎么创建出来的====>***
 
-* Spring Security核心是过滤器Filter，name=springSecurityFilterChain, class=FilterChainProxy
-* FilterChainProxy中存放过滤器链（List<SecurityFilterChain>)，然后这个过滤器链的每个元素SecurityFilterChain本质是又是一个过滤器列表（List<Filter>)
-* WebSecurity用来创建核心过滤器，即FilterrChainProxy；HttpSecurity用来创建过滤器链的每个元素，即SecurityFilterChain
-* 像HttpSecurity，WebSecurity虽然创建对象不同，但都继承AbstractConfiguredSecurityBuilder。之前提到的那些configurer
+---
 
-好，我们继续看下SecurityConfigurer的init()方法的实现，其实是WebSecurityConfigurer中去实现，相关我们可以参考上面已经说过的 WebSecurityConfiguration 中的setFilterChainProxySecurityConfigurer()。实现了WebSecurityConfigurer接口的是WebSecurityConfigurerAdapter适配器类，它init()代码如下图：
+我们继续看下SecurityConfigurer的init()方法的实现，是在WebSecurityConfigurerAdapter中去实现，代码如下图：
 
 ![]({{site.url}}/images/posts/20200229/WebSecurityConfigurerAdapter_init.png)
 
 这个方法主要做三件事：
 
-1. 创建httpSecurity
+1. **创建httpSecurity**
 2. 把创建的httpSecurity对象添加到WebSecurity中的securityFilterChainBuilders中
-3. 设置了一个webSecurity build之后会马上执行的线程，即webSecurity添加一个过滤器（虽然这个过滤器叫securityInterceptor）
+3. webSecurity build之后会执行的一个线程实现
 
 接下来，我们看下它是怎么创建 httpSecurity的：
 
@@ -115,7 +150,7 @@ WebSecurityConfiguration类中，主要关注两个方法，如方法名取的�
 
 ![]({{site.url}}/images/posts/20200229/WebSecurityConfigurerAdapter_authenticationManager.png)
 
-在config()中，配置了disableLocalConfigureAuthenticationBldr，同样可以在WebSecurityConfigurerAdapter的继承类中覆写这个方法。
+配置了disableLocalConfigureAuthenticationBldr，同样可以在WebSecurityConfigurerAdapter的继承类中覆写这个方法。
 
 AbstractConfiguredSecurityBuilder.doBuilder()中的init()已经介绍完，然后我们回头继续看它的configure()方法。
 
@@ -137,4 +172,84 @@ AbstractConfiguredSecurityBuilder.doBuilder()中的init()已经介绍完，然�
 2. 然后基于上面的securityFilterChains直接new一个FilterChainProxy，即最终的过滤器链。如果需要debug，它还会包装一层DebugFilter
 3. 最后通过 postBuildAction.run() 来实现一个延迟加载的功能，把早先定义的httpSecurity过滤器加到WebSecurity上。
 
-到此为止，Spring Security整个初始化过滤器链流程结束。我们在使用Spring Security中，一般继承WebSecurityConfigurerAdapter并且覆写一个或多个configure方法。
+到此为止，Spring Security整个初始化过滤器链流程结束。
+
+最后我们看下时序图：
+
+![]({{site.url}}/images/posts/20200229/time_seq_chart.png)
+
+Spring Security中容易混淆的地方
+
+* DelegatingFilterProxy, FilterChainProxy 以及 SecurityFilterChain 的关系，哪个才是真正的 Spring Security的过滤器链?
+
+	- org.springframework.web.filter.DelegatingFilterProxy
+		
+		它不是Spring Security中的类，而是 Spring Web中的类。因为Spring不想有太强侵入性，因此使用 DelegatingFilterProxy 来实现委托代理。DelegatingFilterProxy 也是 Spring Web 中六大代理中的第五个，是全局唯一的。DelegatingFilterProxy实现了Filter接口，它代理的就是FilterChainProxy。
+		
+		Debug代码，我们可以看到创建DelegatingFilterProxy对象的入参 targetBeanName 是 "springSecurityFilterChain"，如图
+		
+		![]({{site.url}}/images/posts/20200229/DelegatingFilterProxy_new.png)
+		
+		然后我们继续Debug看下 springSecurityFilterChain 是哪个Bean：
+		
+		![]({{site.url}}/images/posts/20200229/DelegatingFilterProxy_springSecurityFilterChain.png)
+		
+		如图可见，springSecurityFilterChain 就是 FilterChainProxy。
+	
+	- org.springframework.security.web.FilterChainProxy
+	
+		FilterChainProxy同样是代理类，全局唯一。我们可以看它源码中有:
+		
+		> 		private List<SecurityFilterChain> filterChains;
+		
+		 它有一组filterChains，对应于不同url mapping，对应代码如下：
+		 
+		![]({{site.url}}/images/posts/20200229/FilterChainProxy_getFilters.png)
+
+		当根据URL匹配到对应的filter集合后，会调用一个内部类来实现代理功能。这个内部代理的类在  doFilterInternal() 中被创建：
+		
+		![]({{site.url}}/images/posts/20200229/FilterChainProxy_doFilterInternal.png)
+	
+		接下来，我们看下这个内部代理的具体实现：
+		
+		![]({{site.url}}/images/posts/20200229/FilterChainProxy_VirtualFilterChain.png)
+	
+		它根据URL匹配出的过滤器链中的过滤器依次进行过滤。之前 doFilterInternal() 方法中的 getFilters(fwRequest) 获取到的 List<FIlter> filters，会被当做 additionalFilters 传入 VirtualFilterChain中进行处理；而这个 filters 就包含了如 UsernamePasswordAuthenticationFilter，SecurityContextPersistenceFilter，FilterSecurityInterceptor 等在内的我们常见的有具体业务职责的过滤器。
+	
+	- org.springframework.security.web.SecurityFilterChain
+
+		FilterChainProxy 中的核心属性 filterChains 就是一个 SecurityFilterChain 列表，如图：
+		
+		![]({{site.url}}/images/posts/20200229/FilterChainProxy_filterChains.png)
+
+		然后我们看下 SecurityFilterChain 其实就是一个很简单的接口：
+		
+		![]({{site.url}}/images/posts/20200229/SecurityFilterChain.png)
+		
+		它的实现类DefaultSecurityFilterChain也非常简单：
+		
+		![]({{site.url}}/images/posts/20200229/DefaultSecurityFilterChain.png)
+		
+		话说DefaultSeccurityFilterChain这个实现类的名字是不是有点熟悉，其实它的初始化方法在WebSecurity和HttpSecurity的performBuild()中都分别调用过，这在之前已经说过，我们可以再看下。
+		
+		WebSecurity添加DefaultSecurityFilterChain对象：
+		
+		![]({{site.url}}/images/posts/20200229/WebSecurity_addDefaultSecurityFilterChain.png)
+		
+		HttpSecurity添加DefaultSecurityFilterChain对象：
+		
+		![]({{site.url}}/images/posts/20200229/HttpSecurity_addDefaultSecurityFilterChain.png)
+
+		至此，是不是和之前看的代码汇合到了一起？
+		
+### 总结
+
+整个过程走下来比自己预想中要麻烦，自己约莫了解了这部分源码的七八成，但是试图讲给别人的时候，我觉得听众也许只是云里雾里听了个一两成吧。日后可能只能大概记了几个类名，WebSecurity, HttpSecurity之类。
+
+这是无可奈何的事，因为解析走读源码本身就是一个需要亲力亲为的事，最好的方式就是自己在源码里顺着脉络点着前进后退反复看，看迷糊了网上查查别人的总结再理清思路从头看。要把源码说清楚，总不是那个味儿，如果顺着类图，时序图等说，又有点隔靴搔痒的感觉。
+
+但不管怎么说，这毕竟是个很不错的尝试。
+
+
+> P.S.
+> 时序图和过滤器链图源于网络，如有侵犯版权，请联系我删除，谢谢！
