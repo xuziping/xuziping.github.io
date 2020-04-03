@@ -22,16 +22,19 @@ Spring Security的实现原理就是过**滤器链**，结构图如下：
 
 1. SecurityContextPersistenceFilter
 
-> 请求进入时，从配置好的 SecurityContextRepository 中获取 SecurityContext，把它塞给 SecurityContextHolder。在响应离开时，将 SecurityContextHolder 里的 SecurityContext 保存到SecurityContextRepository，并且清除 securityContextHolder 持有的 SecurityContext。
+ 请求进入时，从配置好的 SecurityContextRepository 中获取 SecurityContext，把它塞给 SecurityContextHolder。在响应离开时，将 SecurityContextHolder 里的 SecurityContext 保存到SecurityContextRepository，并且清除 securityContextHolder 持有的 SecurityContext。
 
 2. UsernamePasswordAuthenticationFilter 
-> 用来处理来自表单提交的用户名和密码的认证。内部还有成功和失败对应的 AuthenticationSuccessHandler 和 AuthenticationFailureHandler 处理。
+
+ 用来处理来自表单提交的用户名和密码的认证。内部还有成功和失败对应的 AuthenticationSuccessHandler 和 AuthenticationFailureHandler 处理。
 
 3. ExceptionTranslationFilter
-> 能够捕获过滤器中的异常并且处理 AuthenticationException 和 AccessDeniedException。在处理异常前，它会先用 RequestCache 把当前的HttpServerletRequest的信息保存起来，使用户成功登陆后可以跳到之前页面。
+
+ 能够捕获过滤器中的异常并且处理 AuthenticationException 和 AccessDeniedException。在处理异常前，它会先用 RequestCache 把当前的HttpServerletRequest的信息保存起来，使用户成功登陆后可以跳到之前页面。
 
 4. FilterSecurityInterceptor 
-> 保护Http资源，之前授权不通过就抛出异常。
+
+ 保护Http资源，之前授权不通过就抛出异常。
 
 
 ### Spring Security如何使用
