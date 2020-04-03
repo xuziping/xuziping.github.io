@@ -7,35 +7,34 @@ keywords: 读源码, Spring Security
 ---
 
 ### Spring Security是什么
-
-> Spring Security是Spring社区的一个顶级项目，也是Spring Boot官方推荐使用的Security框架。
+Spring Security是Spring社区的一个顶级项目，也是Spring Boot官方推荐使用的Security框架。
 
 ### Spring Security功能是什么
-> Spring Security功能主要就是**认证**和**授权**。
+Spring Security功能主要就是**认证**和**授权**。
 
 ### Spring Security实现原理是什么
 
-> Spring Security的实现原理就是过**滤器链**，结构图如下：
+Spring Security的实现原理就是过**滤器链**，结构图如下：
 
-> ![]({{site.url}}/images/posts/20200229/filter_chain.png)
+![]({{site.url}}/images/posts/20200229/filter_chain.png)
 
-> 先简单介绍下主要过滤器：
+先简单介绍下主要过滤器：
 
-> 1. SecurityContextPersistenceFilter
+1. SecurityContextPersistenceFilter
 
 > 	请求进入时，从配置好的 SecurityContextRepository 中获取 SecurityContext，把它塞给 SecurityContextHolder。在响应离开时，将 SecurityContextHolder 里的 SecurityContext 保存到SecurityContextRepository，并且清除 securityContextHolder 持有的 SecurityContext。
 
-> 2. UsernamePasswordAuthenticationFilter 
+2. UsernamePasswordAuthenticationFilter 
 > 	用来处理来自表单提交的用户名和密码的认证。内部还有成功和失败对应的 AuthenticationSuccessHandler 和 AuthenticationFailureHandler 处理。
 
-> 3. ExceptionTranslationFilter
+3. ExceptionTranslationFilter
 > 	能够捕获过滤器中的异常并且处理 AuthenticationException 和 AccessDeniedException。在处理异常前，它会先用 RequestCache 把当前的HttpServerletRequest的信息保存起来，使用户成功登陆后可以跳到之前页面。
 
-> 4. FilterSecurityInterceptor 
-> 	是用于保护Http 资源的
+4. FilterSecurityInterceptor 
+> 	保护Http资源，之前授权不通过就抛出异常。
 
 
-### 我们一般如何使用Spring Security
+### Spring Security如何使用
 
 > 自己写个配置类，继承自 WebSecurityConfigurerAdapter，重写几个configure()方法。
 
@@ -43,7 +42,7 @@ keywords: 读源码, Spring Security
 ***接下去进入正题，我们通过跟踪源码，了解Spring Security是如何创建出这个过滤器链的，好戏开场====>***
 
 ---
-### Spring Security过滤器链的实现
+### 过滤器链实现过程的代码走读
 
 **剧透及摘要：**
 
@@ -178,7 +177,12 @@ AbstractConfiguredSecurityBuilder.doBuilder()中的init()已经介绍完，然�
 
 ![]({{site.url}}/images/posts/20200229/time_seq_chart.png)
 
-Spring Security中容易混淆的地方
+
+***代码走读完了，可能仍然不太清楚，我们可以从过滤器链的组织结构来看====>***
+
+---
+
+### 从过滤器链的结构理清关系
 
 * DelegatingFilterProxy, FilterChainProxy 以及 SecurityFilterChain 的关系，哪个才是真正的 Spring Security的过滤器链?
 
