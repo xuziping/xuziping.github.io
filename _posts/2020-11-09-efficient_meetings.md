@@ -314,8 +314,7 @@ P.S. 会议引导者一般不作为会议内容输出者，因此上述会议都
  	
 	2. 会议启动模板 - 漂流向导图
 
-
- ![![](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhmzutgoj30oc0efqbj.jpg)](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhtt9w7jj30md0nedu9.jpg)
+		>  ![![](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhmzutgoj30oc0efqbj.jpg)](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhtt9w7jj30md0nedu9.jpg)
  		        
 
 	3. 5P 模型
@@ -360,11 +359,11 @@ P.S. 会议引导者一般不作为会议内容输出者，因此上述会议都
 	
 	2. 金数据的表格收集可以参照 3 Do模型：
 		
-	 * Do-Again ：建议可以继续做的是什么？		
-	 
-	 * Do-Differently：建议哪些方面可以改善？	
-	 
-	 * Don't- Do ：建议停止做什么？
+		> Do-Again ：建议可以继续做的是什么？		
+		> 
+		> Do-Differently：建议哪些方面可以改善？	
+		>
+		> Don't- Do ：建议停止做什么？
 		
 	3. 焦点讨论法（ORID）：客观性问题、反映性问题、诠释性问题、决定性问题
 		
@@ -374,13 +373,13 @@ P.S. 会议引导者一般不作为会议内容输出者，因此上述会议都
 		
 	6. 4R		
 	
-	  * Retain： 你要保留什么？
-	  
-	  * Revise： 你要改变什么？	
-	  	
-	  * Remove：你要去掉什么？
-	  	
-	  * Recommend：你建议我们增加什么？
+		> Retain： 你要保留什么？
+		> 	  
+		> Revise： 你要改变什么？	
+		> 	  	
+		> Remove：你要去掉什么？
+		> 	  	
+		> Recommend：你建议我们增加什么？
 		      
 #### D4：发现新的学习机会
 
