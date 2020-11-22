@@ -308,16 +308,17 @@ P.S. 会议引导者一般不作为会议内容输出者，因此上述会议都
    
 * 工具
 
- 	* 会议启动工具 - “船桨” OARR
+	1. 会议启动工具 - “船桨” OARR
  		
- 		> 成效（Outcome），日程（Agenda），角色（Roles），规则（Rules）
+	   > 成效（Outcome），日程（Agenda），角色（Roles），规则（Rules）
  	
- 	*  会议启动模板 - 漂流向导图
+	2. 会议启动模板 - 漂流向导图
 
- 		> ![![](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhmzutgoj30oc0efqbj.jpg)](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhtt9w7jj30md0nedu9.jpg)
+
+ ![![](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhmzutgoj30oc0efqbj.jpg)](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhtt9w7jj30md0nedu9.jpg)
  		        
 
-	* 5P 模型
+	3. 5P 模型
 
 		> ![](https://tva1.sinaimg.cn/large/0081Kckwly1gkyhzngjmbj30ul0f7wlm.jpg)
 	
@@ -355,33 +356,31 @@ P.S. 会议引导者一般不作为会议内容输出者，因此上述会议都
 
 	 每次研讨会介绍后，对会议过程进行回顾和反思，有利于我们深入学习和改进。其中有以下方法：
 		
-	1. 通过我司的金数据直接向参会者收集亮点和缺点
+	1. 通过我司的金数据直接向参会者收集亮点和缺点：研讨会哪里做得比较好？哪里可以做得更好？
+	
+	2. 金数据的表格收集可以参照 3 Do模型：
 		
-		> 研讨会哪里做得比较好？哪里可以做得更好？
+	 * Do-Again ：建议可以继续做的是什么？		
+	 
+	 * Do-Differently：建议哪些方面可以改善？	
+	 
+	 * Don't- Do ：建议停止做什么？
 		
-	2. 金数据的表格收集可以参照 3 Do
+	3. 焦点讨论法（ORID）：客观性问题、反映性问题、诠释性问题、决定性问题
 		
-	  * Do-Again ：建议可以继续做的是什么？		
-	  * Do-Differently：建议哪些方面可以改善？	
-	  * Don't- Do ：建议停止做什么？
+	4. 3-2-1：类似培训中的5-3-1行动计划，其中3（有意思的）-2（应用）-1（行动）
 		
-	3. 焦点讨论法（ORID）
-		
-	  客观性问题、反映性问题、诠释性问题、决定性问题
-		
-	4. 3-2-1
-		
-	  类似培训中的5-3-1行动计划，其中3（有意思的）-2（应用）-1（行动）
-		
-	5. 库伯经验学习圈
-		
-	  体验/反思/总结/运用：你从中学到了什么？通常，你如何应用学到内容？你如何在工作场景中运用？
+	5. 库伯经验学习圈：体验/反思/总结/运用，你从中学到了什么？你如何应用学到内容？你如何在工作场景中运用？
 		
 	6. 4R		
-	 	* Retain： 你要保留什么？
-		* Revise： 你要改变什么？		
-		* Remove：你要去掉什么？		
-		* Recommend：你建议我们增加什么？
+	
+	  * Retain： 你要保留什么？
+	  
+	  * Revise： 你要改变什么？	
+	  	
+	  * Remove：你要去掉什么？
+	  	
+	  * Recommend：你建议我们增加什么？
 		      
 #### D4：发现新的学习机会
 
