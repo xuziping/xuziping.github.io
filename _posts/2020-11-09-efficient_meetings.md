@@ -1,8 +1,8 @@
 ---
 layout: post
-title: 向前端开发人员介绍后端开发框架
+title: 高效会议引导下的敏捷实践
 categories: 敏捷教练
-description: 后端开发框架的介绍
+description: 如何利用引导技术使会议更高效,如何把高效会议应用于敏捷实践
 keywords: 敏捷,教练
 ---
 
