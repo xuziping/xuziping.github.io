@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务管理应用 - 原型图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .view-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .overview-mode {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            overflow: auto;
+            padding: 80px 20px 20px;
+        }
+
+        .overview-mode.active {
+            display: block;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .overview-item {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .overview-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .overview-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+
+        .overview-phone {
+            width: 195px;
+            height: 422px;
+            background: #000;
+            border-radius: 20px;
+            padding: 4px;
+            margin: 0 auto;
+            cursor: pointer;
+        }
+
+        .overview-screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            transform: scale(0.5);
+            transform-origin: top left;
+            width: 390px;
+            height: 844px;
+        }
+
+        .single-mode {
+            display: flex;
+        }
+
+        .single-mode.hidden {
+            display: none;
+        }
+
+        .phone-container {
+            width: 390px;
+            height: 844px;
+            background: #000;
+            border-radius: 40px;
+            padding: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .page {
+            display: none;
+            height: calc(100% - 44px);
+            overflow-y: auto;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .task-card.completed {
+            opacity: 0.6;
+            border-left-color: #4CAF50;
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .task-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .priority {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .priority.high {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .priority.medium {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .priority.low {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 83px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+
+        .nav-item:hover {
+            background: #f5f5f5;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-text {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .fab {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+        }
+
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 32px;
+            color: #667eea;
+        }
+
+        .login-form {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.9);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .calendar-day:hover {
+            background: #f0f0f0;
+        }
+
+        .calendar-day.today {
+            background: #667eea;
+            color: white;
+        }
+
+        .calendar-day.has-task {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .project-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .project-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .project-progress {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            width: 90%;
+            max-width: 350px;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            background: #f5f5f5;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: #f5f5f5;
+            color: #666;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .settings-list {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-item:hover {
+            background: #f8f8f8;
+        }
+
+        .settings-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            color: #667eea;
+        }
+
+        .settings-text {
+            flex: 1;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .settings-arrow {
+            color: #ccc;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            margin-right: 16px;
+        }
+
+        .user-info h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .user-info p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 视图切换按钮 -->
+    <div class="view-toggle">
+        <button class="toggle-btn active" onclick="switchToSingleView()">单页模式</button>
+        <button class="toggle-btn" onclick="switchToOverview()">全览模式</button>
+    </div>
+
+    <!-- 多界面预览模式 -->
+    <div class="overview-mode" id="overview-mode">
+        <div class="overview-grid">
+            <div class="overview-item">
+                <div class="overview-title">登录页面</div>
+                <div class="overview-phone" onclick="switchToSingleView('login-page')">
+                    <div class="overview-screen" id="login-overview"></div>
+                </div>
+            </div>
+            <div class="overview-item">
+                <div class="overview-title">今日任务</div>
+                <div class="overview-phone" onclick="switchToSingleView('home-page')">
+                    <div class="overview-screen" id="home-overview"></div>
+                </div>
+            </div>
+            <div class="overview-item">
+                <div class="overview-title">任务列表</div>
+                <div class="overview-phone" onclick="switchToSingleView('tasks-page')">
+                    <div class="overview-screen" id="tasks-overview"></div>
+                </div>
+            </div>
+            <div class="overview-item">
+                <div class="overview-title">项目管理</div>
+                <div class="overview-phone" onclick="switchToSingleView('projects-page')">
+                    <div class="overview-screen" id="projects-overview"></div>
+                </div>
+            </div>
+            <div class="overview-item">
+                <div class="overview-title">日历视图</div>
+                <div class="overview-phone" onclick="switchToSingleView('calendar-page')">
+                    <div class="overview-screen" id="calendar-overview"></div>
+                </div>
+            </div>
+            <div class="overview-item">
+                <div class="overview-title">个人中心</div>
+                <div class="overview-phone" onclick="switchToSingleView('profile-page')">
+                    <div class="overview-screen" id="profile-overview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 单页模式 -->
+    <div class="single-mode" id="single-mode">
+    <div class="phone-container">
+        <div class="screen">
+            <!-- 状态栏 -->
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 🔋</span>
+            </div>
+
+            <!-- 登录页面 -->
+            <div class="page active" id="login-page">
+                <div class="login-container">
+                    <div class="logo">📋</div>
+                    <h2 style="color: white; margin-bottom: 32px; text-align: center;">任务管理</h2>
+                    <div class="login-form">
+                        <div class="input-group">
+                            <input type="email" placeholder="邮箱地址" />
+                        </div>
+                        <div class="input-group">
+                            <input type="password" placeholder="密码" />
+                        </div>
+                        <button class="btn btn-primary" onclick="showPage('home-page')">登录</button>
+                        <p style="text-align: center; color: rgba(255,255,255,0.8); margin-top: 20px; font-size: 14px;">
+                            还没有账号？<span style="color: white; text-decoration: underline; cursor: pointer;">立即注册</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主页 -->
+            <div class="page" id="home-page">
+                <div class="header">
+                    <h1>今日任务</h1>
+                    <p>2024年1月15日 星期一</p>
+                </div>
+                <div class="content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">8</div>
+                            <div class="stat-label">待完成</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">12</div>
+                            <div class="stat-label">已完成</div>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card" onclick="showTaskDetail()">
+                        <div class="task-title">完成项目原型设计</div>
+                        <div class="task-meta">
+                            <span>截止: 今天 18:00</span>
+                            <span class="priority high">高优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card">
+                        <div class="task-title">团队会议准备</div>
+                        <div class="task-meta">
+                            <span>截止: 明天 10:00</span>
+                            <span class="priority medium">中优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card completed">
+                        <div class="task-title">✓ 回复客户邮件</div>
+                        <div class="task-meta">
+                            <span>已完成</span>
+                            <span class="priority low">低优先级</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="fab" onclick="showAddTask()">+</div>
+            </div>
+
+            <!-- 任务列表页 -->
+            <div class="page" id="tasks-page">
+                <div class="header">
+                    <h1>所有任务</h1>
+                    <p>管理你的所有任务</p>
+                </div>
+                <div class="content">
+                    <input type="text" class="search-bar" placeholder="搜索任务..." />
+                    
+                    <div class="filter-tabs">
+                        <div class="filter-tab active">全部</div>
+                        <div class="filter-tab">待办</div>
+                        <div class="filter-tab">进行中</div>
+                        <div class="filter-tab">已完成</div>
+                        <div class="filter-tab">高优先级</div>
+                    </div>
+                    
+                    <div class="task-card">
+                        <div class="task-title">完成项目原型设计</div>
+                        <div class="task-meta">
+                            <span>截止: 今天 18:00</span>
+                            <span class="priority high">高优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card">
+                        <div class="task-title">团队会议准备</div>
+                        <div class="task-meta">
+                            <span>截止: 明天 10:00</span>
+                            <span class="priority medium">中优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card">
+                        <div class="task-title">更新用户文档</div>
+                        <div class="task-meta">
+                            <span>截止: 本周五</span>
+                            <span class="priority low">低优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-card">
+                        <div class="task-title">代码审查</div>
+                        <div class="task-meta">
+                            <span>截止: 下周一</span>
+                            <span class="priority medium">中优先级</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="fab" onclick="showAddTask()">+</div>
+            </div>
+
+            <!-- 项目页面 -->
+            <div class="page" id="projects-page">
+                <div class="header">
+                    <h1>项目</h1>
+                    <p>管理你的项目进度</p>
+                </div>
+                <div class="content">
+                    <div class="project-card">
+                        <div class="project-header">
+                            <div class="project-title">移动应用开发</div>
+                            <div class="project-progress">75%</div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 75%"></div>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">8个任务中已完成6个</p>
+                    </div>
+                    
+                    <div class="project-card">
+                        <div class="project-header">
+                            <div class="project-title">网站重构</div>
+                            <div class="project-progress">45%</div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 45%"></div>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">12个任务中已完成5个</p>
+                    </div>
+                    
+                    <div class="project-card">
+                        <div class="project-header">
+                            <div class="project-title">用户研究</div>
+                            <div class="project-progress">90%</div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 90%"></div>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">5个任务中已完成4个</p>
+                    </div>
+                </div>
+                <div class="fab" onclick="showAddProject()">+</div>
+            </div>
+
+            <!-- 日历页面 -->
+            <div class="page" id="calendar-page">
+                <div class="header">
+                    <h1>日历</h1>
+                    <p>查看任务时间安排</p>
+                </div>
+                <div class="content">
+                    <div class="calendar-header">
+                        <button style="background: none; border: none; font-size: 18px; cursor: pointer;">‹</button>
+                        <h3>2024年1月</h3>
+                        <button style="background: none; border: none; font-size: 18px; cursor: pointer;">›</button>
+                    </div>
+                    
+                    <div class="calendar-grid">
+                        <div style="text-align: center; font-weight: 600; color: #666;">日</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">一</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">二</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">三</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">四</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">五</div>
+                        <div style="text-align: center; font-weight: 600; color: #666;">六</div>
+                        
+                        <div class="calendar-day"></div>
+                        <div class="calendar-day">1</div>
+                        <div class="calendar-day">2</div>
+                        <div class="calendar-day">3</div>
+                        <div class="calendar-day">4</div>
+                        <div class="calendar-day has-task">5</div>
+                        <div class="calendar-day">6</div>
+                        <div class="calendar-day">7</div>
+                        <div class="calendar-day">8</div>
+                        <div class="calendar-day">9</div>
+                        <div class="calendar-day">10</div>
+                        <div class="calendar-day">11</div>
+                        <div class="calendar-day has-task">12</div>
+                        <div class="calendar-day">13</div>
+                        <div class="calendar-day">14</div>
+                        <div class="calendar-day today">15</div>
+                        <div class="calendar-day has-task">16</div>
+                        <div class="calendar-day">17</div>
+                        <div class="calendar-day">18</div>
+                        <div class="calendar-day">19</div>
+                        <div class="calendar-day">20</div>
+                        <div class="calendar-day">21</div>
+                        <div class="calendar-day">22</div>
+                        <div class="calendar-day">23</div>
+                        <div class="calendar-day">24</div>
+                        <div class="calendar-day">25</div>
+                        <div class="calendar-day">26</div>
+                        <div class="calendar-day">27</div>
+                        <div class="calendar-day">28</div>
+                        <div class="calendar-day">29</div>
+                        <div class="calendar-day">30</div>
+                        <div class="calendar-day">31</div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin-bottom: 12px;">今日任务</h4>
+                        <div class="task-card">
+                            <div class="task-title">完成项目原型设计</div>
+                            <div class="task-meta">
+                                <span>18:00</span>
+                                <span class="priority high">高优先级</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 我的页面 -->
+            <div class="page" id="profile-page">
+                <div class="header">
+                    <h1>我的</h1>
+                    <p>个人设置和统计</p>
+                </div>
+                <div class="content">
+                    <div class="user-profile">
+                        <div class="avatar">张</div>
+                        <div class="user-info">
+                            <h3>张三</h3>
+                            <p>zhangsan@example.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">156</div>
+                            <div class="stat-label">总任务数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">89%</div>
+                            <div class="stat-label">完成率</div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <div class="settings-icon">🔔</div>
+                            <div class="settings-text">通知设置</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-icon">🎨</div>
+                            <div class="settings-text">主题设置</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-icon">☁️</div>
+                            <div class="settings-text">数据同步</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-icon">📊</div>
+                            <div class="settings-text">统计报告</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-icon">❓</div>
+                            <div class="settings-text">帮助与反馈</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-icon">🚪</div>
+                            <div class="settings-text">退出登录</div>
+                            <div class="settings-arrow">›</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部导航 -->
+            <div class="bottom-nav">
+                <div class="nav-item active" onclick="showPage('home-page')">
+                    <div class="nav-icon">🏠</div>
+                    <div class="nav-text">今日</div>
+                </div>
+                <div class="nav-item" onclick="showPage('tasks-page')">
+                    <div class="nav-icon">📋</div>
+                    <div class="nav-text">任务</div>
+                </div>
+                <div class="nav-item" onclick="showPage('projects-page')">
+                    <div class="nav-icon">📁</div>
+                    <div class="nav-text">项目</div>
+                </div>
+                <div class="nav-item" onclick="showPage('calendar-page')">
+                    <div class="nav-icon">📅</div>
+                    <div class="nav-text">日历</div>
+                </div>
+                <div class="nav-item" onclick="showPage('profile-page')">
+                    <div class="nav-icon">👤</div>
+                    <div class="nav-text">我的</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加任务模态框 -->
+        <div class="modal" id="add-task-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">新建任务</h3>
+                    <button class="close-btn" onclick="hideModal('add-task-modal')">&times;</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">任务标题</label>
+                    <input type="text" class="form-input" placeholder="输入任务标题" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <textarea class="form-input" rows="3" placeholder="任务描述（可选）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <select class="form-select">
+                        <option>低优先级</option>
+                        <option>中优先级</option>
+                        <option>高优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">截止日期</label>
+                    <input type="date" class="form-input" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">项目</label>
+                    <select class="form-select">
+                        <option>无项目</option>
+                        <option>移动应用开发</option>
+                        <option>网站重构</option>
+                        <option>用户研究</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="hideModal('add-task-modal')">取消</button>
+                    <button class="btn btn-primary" onclick="addTask()">创建</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务详情模态框 -->
+        <div class="modal" id="task-detail-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">任务详情</h3>
+                    <button class="close-btn" onclick="hideModal('task-detail-modal')">&times;</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">任务标题</label>
+                    <input type="text" class="form-input" value="完成项目原型设计" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <textarea class="form-input" rows="3">设计移动应用的高保真原型图，包含所有主要功能页面和交互流程。</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <select class="form-select">
+                        <option>低优先级</option>
+                        <option>中优先级</option>
+                        <option selected>高优先级</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">截止日期</label>
+                    <input type="date" class="form-input" value="2024-01-15" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">状态</label>
+                    <select class="form-select">
+                        <option selected>待办</option>
+                        <option>进行中</option>
+                        <option>已完成</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="hideModal('task-detail-modal')">取消</button>
+                    <button class="btn btn-primary" onclick="updateTask()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div> <!-- 关闭 single-mode -->
+
+    <script>
+        function showPage(pageId) {
+            // 隐藏所有页面
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+            
+            // 显示指定页面
+            document.getElementById(pageId).classList.add('active');
+            
+            // 更新导航状态
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            // 根据页面ID设置对应的导航项为活跃状态
+            const navMap = {
+                'home-page': 0,
+                'tasks-page': 1,
+                'projects-page': 2,
+                'calendar-page': 3,
+                'profile-page': 4
+            };
+            
+            if (navMap[pageId] !== undefined) {
+                navItems[navMap[pageId]].classList.add('active');
+            }
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showAddTask() {
+            showModal('add-task-modal');
+        }
+
+        function showAddProject() {
+            alert('添加项目功能');
+        }
+
+        function showTaskDetail() {
+            showModal('task-detail-modal');
+        }
+
+        function addTask() {
+            alert('任务创建成功！');
+            hideModal('add-task-modal');
+        }
+
+        function updateTask() {
+            alert('任务更新成功！');
+            hideModal('task-detail-modal');
+        }
+
+        // 过滤标签点击事件
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 日历日期点击事件
+        document.querySelectorAll('.calendar-day').forEach(day => {
+            day.addEventListener('click', function() {
+                if (this.textContent) {
+                    document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('today'));
+                    this.classList.add('today');
+                }
+            });
+        });
+
+        // 任务卡片点击事件
+        document.querySelectorAll('.task-card').forEach(card => {
+            card.addEventListener('click', function() {
+                if (!this.classList.contains('completed')) {
+                    showTaskDetail();
+                }
+            });
+        });
+
+        // 设置项点击事件
+        document.querySelectorAll('.settings-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const text = this.querySelector('.settings-text').textContent;
+                if (text === '退出登录') {
+                    if (confirm('确定要退出登录吗？')) {
+                        showPage('login-page');
+                    }
+                } else {
+                    alert(`打开${text}页面`);
+                }
+            });
+        });
+
+        // 模态框外部点击关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+
+        // 初始化：如果当前在登录页面，隐藏底部导航
+        function updateNavVisibility() {
+            const currentPage = document.querySelector('.page.active');
+            const bottomNav = document.querySelector('.bottom-nav');
+            
+            if (currentPage && currentPage.id === 'login-page') {
+                bottomNav.style.display = 'none';
+            } else {
+                bottomNav.style.display = 'flex';
+            }
+        }
+
+        // 页面切换时更新导航可见性
+        const originalShowPage = showPage;
+        showPage = function(pageId) {
+            originalShowPage(pageId);
+            updateNavVisibility();
+        };
+
+        // 初始化导航可见性
+        updateNavVisibility();
+
+        // 视图切换功能
+        function switchToOverview() {
+            document.getElementById('overview-mode').classList.add('active');
+            document.getElementById('single-mode').classList.add('hidden');
+            
+            // 更新按钮状态
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 生成预览内容
+            generateOverviewContent();
+        }
+
+        function switchToSingleView(pageId) {
+            document.getElementById('overview-mode').classList.remove('active');
+            document.getElementById('single-mode').classList.remove('hidden');
+            
+            // 更新按钮状态
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.toggle-btn:first-child').classList.add('active');
+            
+            // 如果指定了页面，切换到该页面
+            if (pageId) {
+                showPage(pageId);
+            }
+        }
+
+        function generateOverviewContent() {
+            const pages = ['login-page', 'home-page', 'tasks-page', 'projects-page', 'calendar-page', 'profile-page'];
+            
+            pages.forEach(pageId => {
+                const originalPage = document.getElementById(pageId);
+                const overviewContainer = document.getElementById(pageId.replace('-page', '-overview'));
+                
+                if (originalPage && overviewContainer) {
+                    // 克隆页面内容
+                    overviewContainer.innerHTML = `
+                        <div class="status-bar">
+                            <span>9:41</span>
+                            <span>📶 📶 📶 🔋</span>
+                        </div>
+                        ${originalPage.innerHTML}
+                    `;
+                }
+            });
+        }
+
+        // 完善设置页面功能
+        function showSettingsPage(settingType) {
+            switch(settingType) {
+                case '通知设置':
+                    showNotificationSettings();
+                    break;
+                case '主题设置':
+                    showThemeSettings();
+                    break;
+                case '数据同步':
+                    showSyncSettings();
+                    break;
+                case '统计报告':
+                    showStatsReport();
+                    break;
+                case '帮助与反馈':
+                    showHelpPage();
+                    break;
+                default:
+                    alert(`打开${settingType}页面`);
+            }
+        }
+
+        function showNotificationSettings() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">通知设置</h3>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <div class="settings-text">任务提醒</div>
+                            <label style="position: relative; display: inline-block; width: 60px; height: 34px;">
+                                <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #667eea; transition: .4s; border-radius: 34px;"></span>
+                            </label>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-text">截止日期提醒</div>
+                            <label style="position: relative; display: inline-block; width: 60px; height: 34px;">
+                                <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #667eea; transition: .4s; border-radius: 34px;"></span>
+                            </label>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-text">项目更新</div>
+                            <label style="position: relative; display: inline-block; width: 60px; height: 34px;">
+                                <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px;"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showThemeSettings() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">主题设置</h3>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="settings-list">
+                        <div class="settings-item">
+                            <div class="settings-text">浅色主题</div>
+                            <input type="radio" name="theme" checked>
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-text">深色主题</div>
+                            <input type="radio" name="theme">
+                        </div>
+                        <div class="settings-item">
+                            <div class="settings-text">跟随系统</div>
+                            <input type="radio" name="theme">
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showStatsReport() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">统计报告</h3>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">156</div>
+                            <div class="stat-label">本月完成</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">89%</div>
+                            <div class="stat-label">完成率</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">24</div>
+                            <div class="stat-label">连续天数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">3.2h</div>
+                            <div class="stat-label">平均用时</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 12px;">
+                        <h4 style="margin-bottom: 8px;">本周趋势</h4>
+                        <p style="color: #666; font-size: 14px;">相比上周，你的任务完成率提升了12%，继续保持！</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 更新设置项点击事件
+        document.querySelectorAll('.settings-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const text = this.querySelector('.settings-text').textContent;
+                if (text === '退出登录') {
+                    if (confirm('确定要退出登录吗？')) {
+                        showPage('login-page');
+                    }
+                } else {
+                    showSettingsPage(text);
+                }
+            });
+        });
+
+        // 初始化时生成预览内容
+        setTimeout(generateOverviewContent, 100);
+    </script>
+</body>
+</html>
