@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 车号校对</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '车号校对 · 调度员',
+      titleIcon: 'fas fa-id-card',
+      role: 'dispatcher',
+      activeNav: 'operate',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
+            <div class="text-sm font-bold text-gray-800 mb-3 flex items-center">
+              <i class="fas fa-search mr-2 text-indigo-600"></i>
+              扫描或输入车牌
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="relative flex-1">
+                <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <i class="fas fa-keyboard"></i>
+                </div>
+                <input id="plateInput" class="w-full pl-10 pr-12 h-12 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none" placeholder="请输入车牌" />
+                <button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-indigo-600 active:scale-90 transition-all" onclick="scanPlate()">
+                  <i class="fas fa-camera text-lg"></i>
+                </button>
+              </div>
+              <button class="h-12 px-5 rounded-xl bg-indigo-600 text-white font-medium shadow-lg shadow-indigo-200 active:scale-95 transition-transform whitespace-nowrap" onclick="findTask()">
+                搜索
+              </button>
+            </div>
+          </div>
+
+          <div id="taskCard" class="hidden">
+            <div class="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100 relative overflow-hidden">
+               <div class="absolute top-0 right-0 bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-bl-xl">
+                 任务详情
+               </div>
+               
+               <div class="flex items-start mb-4">
+                 <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mr-4 border border-indigo-100 shrink-0">
+                   <i class="fas fa-truck text-xl text-indigo-600"></i>
+                 </div>
+                 <div>
+                   <div class="text-sm text-gray-500 mb-0.5">预报车牌</div>
+                   <div class="text-xl font-bold text-gray-900" id="tPre">-</div>
+                 </div>
+               </div>
+               
+               <div class="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-3 mb-3">
+                 <div>
+                   <div class="text-xs text-gray-500 mb-1">分配库门</div>
+                   <div class="text-lg font-bold text-indigo-600 flex items-center">
+                     <i class="fas fa-door-open mr-1.5 text-sm"></i>
+                     <span id="tDoor">-</span>
+                   </div>
+                 </div>
+                 <div>
+                   <div class="text-xs text-gray-500 mb-1">任务编号</div>
+                   <div class="text-sm font-medium text-gray-700 break-all" id="tId">-</div>
+                 </div>
+               </div>
+
+               <div class="space-y-2 text-sm">
+                 <div class="flex items-center justify-between py-2 border-b border-gray-100 border-dashed">
+                   <span class="text-gray-500"><i class="fas fa-user w-5 text-center mr-1"></i>司机姓名</span>
+                   <span class="font-medium text-gray-800" id="tDriver">-</span>
+                 </div>
+                 <div class="flex items-center justify-between py-2 border-b border-gray-100 border-dashed">
+                   <span class="text-gray-500"><i class="fas fa-phone w-5 text-center mr-1"></i>联系电话</span>
+                   <span class="font-medium text-gray-800" id="tPhone">-</span>
+                 </div>
+                 <div class="flex items-center justify-between py-2">
+                   <span class="text-gray-500"><i class="fas fa-box w-5 text-center mr-1"></i>货主信息</span>
+                   <span class="font-medium text-gray-800" id="tOwner">-</span>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          <div id="checkCard" class="bg-white rounded-2xl p-5 hidden shadow-lg border border-indigo-100">
+            <div class="text-sm font-bold text-gray-800 mb-4 flex items-center">
+              <span class="w-1 h-4 bg-indigo-600 rounded-full mr-2"></span>
+              现场车牌校对
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6 relative">
+              <!-- Divider -->
+              <div class="absolute left-1/2 top-0 bottom-0 w-px bg-gray-100 -ml-px"></div>
+              
+              <div class="text-center">
+                <div class="text-xs text-gray-500 mb-2">预报车牌</div>
+                <div class="relative">
+                   <input id="prePlate" class="w-full text-center font-bold text-gray-800 bg-gray-50 border-0 rounded-lg py-2" readonly />
+                   <div class="absolute inset-0 border border-gray-200 rounded-lg pointer-events-none"></div>
+                </div>
+              </div>
+              
+              <div class="text-center">
+                <div class="text-xs text-indigo-600 font-medium mb-2">现场车牌</div>
+                <div class="relative group">
+                   <input id="actualPlate" class="w-full text-center font-bold text-gray-900 bg-white border-2 border-indigo-100 focus:border-indigo-500 rounded-lg py-2 outline-none transition-colors" placeholder="输入..." />
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-2">
+              <button id="backBtn" class="hidden px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-medium active:scale-95 transition-transform" onclick="goBack()">
+                <i class="fas fa-arrow-left mr-1"></i>返回
+              </button>
+              
+              <div class="flex-1 flex justify-end items-center gap-3">
+                <div id="checkStatus" class="hidden flex items-center text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-lg">
+                  <i class="fas fa-check-circle mr-1.5"></i>已校对
+                </div>
+                <button id="checkBtn" class="flex-1 ml-4 h-12 rounded-xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-200 active:scale-[0.98] transition-transform flex items-center justify-center" onclick="doCheck()">
+                  <i class="fas fa-clipboard-check mr-2"></i>确认校对
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-6 backdrop-blur-sm transition-all">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-xs shadow-2xl transform scale-100 transition-transform">
+              <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center mb-4 mx-auto">
+                <i class="fas fa-exclamation-triangle text-xl"></i>
+              </div>
+              <div class="text-lg font-bold text-gray-800 mb-2 text-center">车牌不一致</div>
+              <div class="text-sm text-gray-500 mb-6 text-center leading-relaxed">
+                预报车牌与现场录入不符。<br>确认要允许该车辆进仓吗？
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <button class="py-2.5 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors" onclick="closeConfirmModal()">取消</button>
+                <button class="py-2.5 rounded-xl bg-orange-500 text-white font-medium shadow-lg shadow-orange-200 hover:bg-orange-600 transition-colors" onclick="confirmCheck()">确认放行</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+    });
+
+    const sampleTasks = [
+      { id: 'TN20240520011', plate: '沪C12345', door: 'A-02', prePlate: '沪C12345', driver: '张师傅', phone: '13800001234', owner: '华东分拨中心' },
+      { id: 'TN20240520012', plate: '沪D88888', door: 'A-01', prePlate: '沪D88888', driver: '李师傅', phone: '13900004567', owner: '上海仓配' }
+    ];
+    let currentTask = null;
+
+    function scanPlate(){
+      scanOverlay({ onDone: function(){
+        const v = '沪C12345';
+        document.getElementById('plateInput').value = v;
+        findTask();
+      }});
+    }
+
+    function findTask(){
+      const q = (document.getElementById('plateInput').value||'').trim();
+      if(!q){ toastShow('请输入车牌'); return; }
+      const t = sampleTasks.find(x=>x.plate===q);
+      currentTask = t || null;
+      const tc = document.getElementById('taskCard');
+      const cc = document.getElementById('checkCard');
+      if(!t){ tc.classList.add('hidden'); cc.classList.add('hidden'); toastShow('未找到匹配任务'); return; }
+      document.getElementById('tId').textContent = t.id;
+      document.getElementById('tDoor').textContent = t.door;
+      document.getElementById('tPre').textContent = t.prePlate;
+      document.getElementById('tDriver').textContent = t.driver || '-';
+      document.getElementById('tPhone').textContent = t.phone || '-';
+      document.getElementById('tOwner').textContent = t.owner || '-';
+      document.getElementById('prePlate').value = t.prePlate;
+      document.getElementById('actualPlate').value = q;
+      tc.classList.remove('hidden');
+      cc.classList.remove('hidden');
+    }
+
+    function doCheck(){
+      const pre = (document.getElementById('prePlate').value||'').trim();
+      const act = (document.getElementById('actualPlate').value||'').trim();
+      if(!pre || !act){ toastShow('请填写完整车牌'); return; }
+      if(pre!==act){
+        document.getElementById('confirmModal').classList.remove('hidden');
+      } else {
+        toastShow('校对一致','ok');
+        finalizeCheck();
+      }
+    }
+
+    function closeConfirmModal(){
+      document.getElementById('confirmModal').classList.add('hidden');
+    }
+
+    function confirmCheck(){
+      closeConfirmModal();
+      toastShow('已记录不一致并允许进仓','ok');
+      finalizeCheck();
+    }
+
+    function finalizeCheck(){
+      document.getElementById('actualPlate').readOnly = true;
+      document.getElementById('checkBtn').classList.add('hidden');
+      document.getElementById('backBtn').classList.remove('hidden');
+      document.getElementById('checkStatus').classList.remove('hidden');
+    }
+
+    function goBack(){ history.back(); }
+  </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>消息详情</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    const role = new URLSearchParams(window.location.search).get('role') || 'operator';
+    initSimulatorLayout({
+      title: '消息详情',
+      titleIcon: 'fas fa-bell',
+      role: role,
+      activeNav: 'messages',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="card rounded-2xl p-4 mb-3">
+            <div id="msgTitle" class="text-lg font-semibold text-gray-800">--</div>
+            <div id="msgTime" class="text-xs text-gray-500 mt-1">--</div>
+          </div>
+          <div class="card rounded-2xl p-4 mb-3">
+            <div id="msgBody" class="text-sm text-gray-800">--</div>
+          </div>
+          <div class="card rounded-2xl p-4">
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-2 text-sm rounded bg-indigo-600 text-white" onclick="markRead()"><i class="fas fa-check mr-1"></i>标记已读</button>
+              <button class="px-3 py-2 text-sm rounded bg-gray-100" onclick="backList()"><i class="fas fa-arrow-left mr-1"></i>返回消息列表</button>
+            </div>
+          </div>
+        </div>
+      `
+    });
+  </script>
+
+  <script>
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const id = qs('id') || 'M20250101-01';
+    const data = {
+      'M20250101-01': { title:'任务 TN20240520003 已分配', time:'09:31', body:'已分配至门位 A-01，请前往处理。' },
+      'M20250101-02': { title:'库门 B-02 队列恢复', time:'09:20', body:'队列状态已恢复正常叫车。' },
+      'M20250101-03': { title:'照片补传成功', time:'09:05', body:'现场照片已成功补传至任务 TN20240520006。' }
+    };
+    const msg = data[id] || { title:'系统消息', time:'--', body:'--' };
+    document.getElementById('msgTitle').textContent = msg.title;
+    document.getElementById('msgTime').textContent = msg.time;
+    document.getElementById('msgBody').textContent = msg.body;
+
+    function markRead(){ toastShow('已标记为已读','ok'); }
+    function backList(){
+      const role = new URLSearchParams(window.location.search).get('role') || 'operator';
+      if(role==='operator') window.location.href = 'operator-notification-list.html';
+      else if(role==='director') window.location.href = 'director-notification-list.html';
+      else if(role==='dispatcher') window.location.href = 'dispatcher-notification-list.html';
+      else window.location.href = 'operator-notification-list.html';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 大件监管详情</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+  </style>
+</head>
+<body>
+  <!-- 布局由 simulator-layout.js 自动创建 -->
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    // 初始化布局
+    initSimulatorLayout({
+      title: '大件监管详情 · 监护/主管',
+      titleIcon: 'fas fa-shield-alt',
+      role: 'director',
+      activeNav: 'tasks',
+      content: `
+        <div class="px-6 py-4 pb-4">
+          <div class="card rounded-2xl p-4 mb-3 relative">
+            <div class="flex justify-end">
+              <span id="ovGuardBadge" class="badge bg-yellow-100 text-yellow-800">未开始监管</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm mt-1">
+              <div>
+                <div class="text-gray-500">任务号</div>
+                <div id="ovTaskId" class="font-semibold text-gray-800">--</div>
+              </div>
+              <div>
+                <div class="text-gray-500">托盘/货号</div>
+                <div id="ovItemId" class="font-semibold text-gray-800">--</div>
+              </div>
+              <div>
+                <div class="text-gray-500">任务类别</div>
+                <div id="ovCategory" class="font-semibold text-gray-800">--</div>
+              </div>
+              <div>
+                <div class="text-gray-500">任务状态</div>
+                <div id="ovState" class="font-semibold text-gray-800">--</div>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center justify-end">
+              <div id="ovTime" class="text-xs text-gray-600"></div>
+            </div>
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="text-sm font-semibold text-gray-800 mb-2">货物信息</div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between"><div>货主</div><div id="cgOwner" class="font-semibold">--</div></div>
+              <div class="flex items-center justify-between"><div>大件描述</div><div id="cgDesc" class="font-semibold">--</div></div>
+              <div class="flex items-center justify-between"><div>规格</div><div id="cgSpec" class="font-semibold">--</div></div>
+              <div class="flex items-center justify-between"><div>特殊要求</div><div id="cgReq" class="font-semibold">--</div></div>
+            </div>
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="text-sm font-semibold text-gray-800 mb-2">作业信息</div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between"><div>库门</div><div id="opDoor" class="font-semibold">--</div></div>
+              <div class="flex items-center justify-between"><div>操作员</div><div id="opOperator" class="font-semibold">--</div></div>
+              <div class="flex items-center justify-between"><div>预计作业时间</div><div id="opEta" class="font-semibold">--</div></div>
+            </div>
+          </div>
+
+          <div id="guardExtras" class="card rounded-2xl p-4 mb-3 hidden">
+            <div class="text-sm font-semibold text-gray-800 mb-2">现场拍照</div>
+            <div id="photoList" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="flex items-center gap-2">
+              <button id="btnAddPhoto" class="px-3 py-2 text-xs rounded bg-gray-100"><i class="fas fa-camera mr-1"></i>添加照片</button>
+              <div id="photoHint" class="text-xs text-gray-600">至少上传 2 张照片以完成</div>
+            </div>
+
+            <div class="text-sm font-semibold text-gray-800 mb-2 mt-4">监护备注</div>
+            <textarea id="guardRemark" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="可选：填写监护备注..."></textarea>
+          </div>
+
+          <div id="guardReadonly" class="card rounded-2xl p-4 mb-3 hidden">
+            <div class="text-sm font-semibold text-gray-800 mb-2">现场拍照</div>
+            <div id="photoReadonly" class="flex flex-wrap gap-2 mb-2"></div>
+            <div class="text-sm font-semibold text-gray-800 mb-2 mt-4">监护备注</div>
+            <div id="guardRemarkReadonly" class="text-xs text-gray-800 card rounded-xl p-2">--</div>
+          </div>
+
+          <div class="mt-2 flex items-center justify-between">
+            <button class="px-3 py-2 text-xs rounded bg-gray-100" onclick="goBack()"><i class="fas fa-arrow-left mr-1"></i>返回</button>
+            <div id="opButtons" class="flex items-center gap-2">
+              <button id="btnStart" class="px-3 py-2 text-sm rounded bg-green-600 text-white"><i class="fas fa-play mr-1"></i>开始</button>
+              <button id="btnPause" class="px-3 py-2 text-sm rounded bg-yellow-500 text-white"><i class="fas fa-pause mr-1"></i>暂停</button>
+              <button id="btnResume" class="px-3 py-2 text-sm rounded bg-indigo-600 text-white"><i class="fas fa-play mr-1"></i>继续</button>
+              <button id="btnComplete" class="px-3 py-2 text-sm rounded bg-gray-800 text-white"><i class="fas fa-check mr-1"></i>完成</button>
+            </div>
+          </div>
+        </div>
+      `
+    });
+
+    // 页面逻辑
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const taskId = qs('task_id') || 'TN20240530011';
+    const itemId = qs('item_id') || 'PLT-0001';
+    const state = { guard: '未开始监管', startTs: null };
+
+    function setOverview(){
+      document.getElementById('ovTaskId').textContent = taskId;
+      document.getElementById('ovItemId').textContent = itemId;
+      document.getElementById('ovCategory').textContent = '进仓';
+      document.getElementById('ovState').textContent = '卸车中';
+      document.getElementById('ovGuardBadge').textContent = state.guard;
+      const tEl = document.getElementById('ovTime');
+      if(state.guard==='未开始监管'){ tEl.textContent = '等待时间  -- 分钟'; }
+      else if(state.guard==='监管中'){ tEl.textContent = '进行时间  ' + calcDuration() + ' 分钟'; }
+      else if(state.guard==='已暂停'){ tEl.textContent = '暂停中'; }
+      else if(state.guard==='已完成'){ tEl.textContent = ''; }
+    }
+    function calcDuration(){ if(!state.startTs) return '--'; const ms = Date.now() - state.startTs; return Math.max(1, Math.floor(ms/60000)); }
+
+    function setCargo(){
+      document.getElementById('cgOwner').textContent = '阿里巴巴';
+      document.getElementById('cgDesc').textContent = '大型服务器设备';
+      document.getElementById('cgSpec').textContent = '2.5m × 1.2m × 1.8m / 380kg';
+      document.getElementById('cgReq').textContent = '防震处理、不可倾斜';
+    }
+    function setOps(){
+      document.getElementById('opDoor').textContent = 'B-02';
+      document.getElementById('opOperator').textContent = '张三';
+      document.getElementById('opEta').textContent = '约需 45分钟';
+    }
+
+    function updateButtons(){
+      const bStart=document.getElementById('btnStart');
+      const bPause=document.getElementById('btnPause');
+      const bResume=document.getElementById('btnResume');
+      const bComplete=document.getElementById('btnComplete');
+      if(state.guard==='未开始监管'){
+        bStart.style.display='inline-flex'; bPause.style.display='none'; bResume.style.display='none'; bComplete.style.display='none';
+        showGuardExtras(false);
+      } else if(state.guard==='监管中'){
+        bStart.style.display='none'; bPause.style.display='inline-flex'; bResume.style.display='none'; bComplete.style.display='inline-flex';
+        showGuardExtras(true);
+        const needPhotos = (state.photos||[]).length < 2;
+        bComplete.disabled = needPhotos;
+        bComplete.classList.toggle('opacity-50', needPhotos);
+        bComplete.classList.toggle('cursor-not-allowed', needPhotos);
+      } else if(state.guard==='已暂停'){
+        bStart.style.display='none'; bPause.style.display='none'; bResume.style.display='inline-flex'; bComplete.style.display='none';
+        showGuardExtras(true);
+      } else if(state.guard==='已完成'){
+        bStart.style.display='none'; bPause.style.display='none'; bResume.style.display='none'; bComplete.style.display='none';
+        showGuardExtras(false);
+        showGuardReadonly(true);
+        try { localStorage.setItem('guardPhotos:'+taskId, JSON.stringify(state.photos||[])); localStorage.setItem('guardRemark:'+taskId, state.remark||''); } catch(e){}
+        renderReadonly();
+      }
+    }
+    document.getElementById('btnStart').onclick = function(){ if(state.guard==='监管中'){ toastShow('已在监管中','warn'); return; } state.guard='监管中'; state.startTs=Date.now(); setOverview(); updateButtons(); toastShow('已开始','ok'); };
+    document.getElementById('btnPause').onclick = function(){ if(state.guard!=='监管中'){ toastShow('需在监管中才可暂停'); return; } state.guard='已暂停'; setOverview(); updateButtons(); toastShow('已暂停','warn'); };
+    document.getElementById('btnResume').onclick = function(){ if(state.guard!=='已暂停'){ toastShow('非暂停状态'); return; } state.guard='监管中'; setOverview(); updateButtons(); toastShow('已继续','ok'); };
+    document.getElementById('btnComplete').onclick = function(){
+      if(state.guard==='未开始监管'){ toastShow('尚未开始'); return; }
+      if((state.photos||[]).length < 2){ toastShow('至少上传 2 张照片'); return; }
+      state.guard='已完成'; setOverview(); updateButtons(); toastShow('已完成','ok');
+    };
+
+    function goBack(){ window.location.href = 'director-guard.html?task_id='+encodeURIComponent(taskId); }
+
+    function showGuardExtras(show){ const el=document.getElementById('guardExtras'); if(!el) return; el.classList.toggle('hidden', !show); }
+    function showGuardReadonly(show){ const el=document.getElementById('guardReadonly'); if(!el) return; el.classList.toggle('hidden', !show); }
+    function renderPhotos(){
+      const list=document.getElementById('photoList'); if(!list) return;
+      list.innerHTML='';
+      const arr=state.photos||[];
+      arr.forEach((url,idx)=>{
+        const box=document.createElement('div');
+        box.className='w-20 h-20 rounded-lg overflow-hidden border border-gray-200 relative';
+        const removable = state.guard!=='已完成';
+        box.innerHTML=`<img src='${url}' class='w-full h-full object-cover'/>${removable?`<button class='absolute top-1 right-1 bg-white bg-opacity-80 rounded px-1 text-[10px]' data-idx='${idx}'>移除</button>`:''}`;
+        list.appendChild(box);
+      });
+      list.querySelectorAll('button[data-idx]').forEach(btn=>{
+        btn.onclick=function(){ const i=parseInt(this.getAttribute('data-idx'),10); const url=state.photos[i]; URL.revokeObjectURL(url); state.photos.splice(i,1); renderPhotos(); updateButtons(); };
+      });
+      const hint=document.getElementById('photoHint');
+      if(hint){
+        if(arr.length<2){ hint.textContent='至少上传 2 张照片以完成'; hint.className='text-xs text-red-600'; }
+        else { hint.textContent='已上传 '+arr.length+' 张照片'; hint.className='text-xs text-green-600'; }
+      }
+    }
+    function openPhotoMock(){
+      let ov=document.getElementById('photo-overlay');
+      if(ov) ov.remove();
+      ov=document.createElement('div');
+      ov.id='photo-overlay';
+      ov.style.position='fixed'; ov.style.inset='0'; ov.style.display='flex'; ov.style.alignItems='center'; ov.style.justifyContent='center'; ov.style.background='rgba(0,0,0,0.35)'; ov.style.zIndex='60';
+      const panel=document.createElement('div');
+      panel.className='bg-white rounded-xl w-[320px] max-w-[calc(100%-24px)] p-4';
+      panel.innerHTML=`<div class='text-sm font-semibold text-gray-800 mb-2'>拍照占位</div><div class='h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-600'>相机占位图像（示意）</div><div class='mt-3 flex items-center justify-end gap-2'><button id='pmClose' class='px-3 py-2 text-xs rounded bg-gray-100'>关闭</button><button id='pmShot' class='px-3 py-2 text-xs rounded bg-indigo-600 text-white'>拍照</button><button id='pmUpload' class='px-3 py-2 text-xs rounded bg-green-600 text-white'>上传</button></div>`;
+      ov.appendChild(panel); document.body.appendChild(ov);
+      document.getElementById('pmClose').onclick=function(){ ov.remove(); };
+      document.getElementById('pmShot').onclick=function(){ const url='https://picsum.photos/seed/'+Date.now()+'/160'; (state.photos=state.photos||[]).push(url); renderPhotos(); updateButtons(); toastShow('已拍摄（模拟）','ok'); ov.remove(); };
+      document.getElementById('pmUpload').onclick=function(){ toastShow('已上传（模拟）','ok'); ov.remove(); };
+    }
+    document.getElementById('btnAddPhoto').onclick=function(){ openPhotoMock(); };
+    document.getElementById('guardRemark').oninput=function(){ state.remark=this.value; };
+
+    function renderReadonly(){
+      const list=document.getElementById('photoReadonly'); if(list){ list.innerHTML=''; (state.photos||[]).forEach(url=>{ const box=document.createElement('div'); box.className='w-20 h-20 rounded-lg overflow-hidden border border-gray-200'; box.innerHTML=`<img src='${url}' class='w-full h-full object-cover'/>`; list.appendChild(box); }); }
+      const r=document.getElementById('guardRemarkReadonly'); if(r){ r.textContent = (state.remark||'--'); }
+    }
+
+    setOverview(); setCargo(); setOps(); updateButtons();
+  </script>
+</body>
+</html>

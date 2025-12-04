@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>操作员 · 新建卸车记录</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '卸车记录 · 操作员',
+      titleIcon: 'fas fa-dolly',
+      role: 'operator',
+      showBottomNav: false,
+      content: `
+        <div class="flex flex-col h-full relative">
+          <div class="flex-1 overflow-y-auto p-4 pb-28 scrollbar-hide">
+             <div id="editCard" class="bg-white rounded-2xl shadow-sm p-4"></div>
+          </div>
+
+          <div class="absolute bottom-4 left-4 right-4 bg-white rounded-2xl shadow-lg shadow-gray-200 border border-gray-100 p-3 z-40 flex items-center gap-3" id="bottomBar">
+            <button id="btnCancel" class="p-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <button id="btnSave" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-medium shadow-sm active:scale-[0.98] transition-transform flex items-center justify-center">
+              <i class="fas fa-save mr-2"></i>保存记录
+            </button>
+          </div>
+        </div>
+      `
+    });
+  </script>
+
+  <!-- Bottom Sheet Modal -->
+  <div id="bottomSheetOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end justify-center" onclick="closeBottomSheet()">
+    <div id="bottomSheetPanel" class="bg-white w-full max-w-md rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300" onclick="event.stopPropagation()">
+      <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="font-bold text-gray-800" id="bottomSheetTitle">选择</div>
+        <button onclick="closeBottomSheet()" class="w-8 h-8 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-gray-100"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="max-h-[60vh] overflow-y-auto p-2" id="bottomSheetList">
+        <!-- Options go here -->
+      </div>
+      <div class="h-6"></div>
+    </div>
+  </div>
+
+  <script>
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const taskId = qs('task_id') || 'TN20240520001';
+    const recordId = qs('record_id') || '';
+    let type = qs('type') || 'loose';
+    const readonly = qs('readonly')==='true';
+    const from = qs('from') || '';
+    const guardModes = ['专人看护','定时巡检','视频监控'];
+    const guardPersons = [ { id: 'GUARD_A', name: '监护员A' }, { id: 'GUARD_B', name: '监护员B' } ];
+
+    let rec = null;
+    let isEdit = false;
+    try{
+      if(recordId){
+        const raw = localStorage.getItem('unloadRecords:'+taskId);
+        const arr = raw ? JSON.parse(raw) : [];
+        const found = arr.find(r => (r.record_id||r.id) === recordId);
+        if(found){
+          rec = JSON.parse(JSON.stringify(found));
+          type = rec.record_type || type;
+          isEdit = true;
+        }
+      }
+      if(!rec){
+        const rawDraft = sessionStorage.getItem('unloadDraft');
+        rec = rawDraft ? JSON.parse(rawDraft) : null;
+      }
+    }catch(e){ console.error(e); }
+    if(!rec){
+      rec = {
+        record_id: 'r'+Date.now(), task_id: taskId, record_type: type, create_time: new Date().toISOString(), operator: 'OP001',
+        origin_type: type==='tray'?'tray':'loose', origin_id: null, conversion_type: 'none', tray_number: '', goods: (type==='tray'?[]:null), actual_quantity: '', packaging: (type==='tray'?'整托':'散货'),
+        is_oversized: false, oversized_info: { weight:null,length:null,width:null,height:null,volume:null,require_guard:false,guard_mode:'',guardian:'' }, has_damage: false,
+        conversion_new_tray: '', conversion_goods_sku: '', conversion_goods_qty: '', conversion_goods_unit: '', conversion_goods_name: '',
+        convert_to_loose: false, convert_to_tray: false, pack_initialized: false, status: 'unsaved', photos: [], damage_type: '', damage_desc: '', actual_unit: ''
+      };
+    }
+
+    function onEdit(field,val){ rec[field]=val; renderCard(); }
+    function onOversize(field,val){ if(!rec.oversized_info) rec.oversized_info={}; rec.oversized_info[field]= field==='require_guard'?!!val:val; }
+    function editLooseGoods(field,val){ if(!rec.goods) rec.goods={}; rec.goods[field]=val; }
+    function editTrayGoods(field,val){ if(!Array.isArray(rec.goods)) rec.goods=[]; if(!rec.goods[0]) rec.goods[0] = { sku:'', total_quantity:'' }; rec.goods[0][field]=val; }
+
+    function scanTray(){ if(readonly) return;
+      scanOverlay({ text:'扫描托盘码...', duration: 1200, onDone: function(){
+        var code = 'TP'+Date.now().toString().slice(-6);
+        if(type==='loose'){
+          rec.conversion_new_tray = code;
+        } else {
+          rec.tray_number = code;
+        }
+        renderCard();
+      }});
+    }
+    function scanGoods(){ if(readonly) return; scanOverlay({ text:'扫描商品号...', duration: 1200, onDone: function(){ var code = 'GD'+Date.now().toString().slice(-6); var name='示例商品-'+code.slice(-4); if(type==='loose'){ if(!rec.goods) rec.goods={}; rec.goods.sku=code; rec.goods.name = rec.goods.name || name; } else { rec.conversion_goods_sku = code; rec.conversion_goods_name = rec.conversion_goods_name || name; } renderCard(); }}); }
+    function takePhoto(){ if(readonly) return; scanOverlay({ text:'拍照中...', duration:1200, onDone: function(){ var pid='ph'+Date.now(); rec.photos.push({id:pid, url:'https://picsum.photos/seed/'+pid+'/80/80'}); renderCard(); toastShow('已上传（模拟）','ok'); }}); }
+    function deletePhoto(pid){ if(readonly) return; rec.photos = (rec.photos||[]).filter(function(p){ return p.id!==pid; }); renderCard(); }
+
+    function openBottomSheet(title, options, currentVal, onSelect){
+      if(readonly) return;
+      var overlay = document.getElementById('bottomSheetOverlay');
+      var panel = document.getElementById('bottomSheetPanel');
+      var titleEl = document.getElementById('bottomSheetTitle');
+      var listEl = document.getElementById('bottomSheetList');
+
+      listEl.innerHTML = '';
+      titleEl.textContent = title;
+
+      options.forEach(function(opt){
+        var isSelected = opt === currentVal;
+        var item = document.createElement('div');
+        item.className = 'p-4 border-b border-gray-50 flex items-center justify-between active:bg-gray-50 transition-colors cursor-pointer rounded-xl mx-1';
+        item.innerHTML = `<span class="${isSelected?'text-indigo-600 font-bold':'text-gray-700'}">${opt}</span>
+                          ${isSelected ? '<i class="fas fa-check text-indigo-600"></i>' : ''}`;
+        item.onclick = function(){
+          onSelect(opt);
+          closeBottomSheet();
+        };
+        listEl.appendChild(item);
+      });
+
+      overlay.classList.remove('hidden');
+      setTimeout(() => {
+        overlay.classList.remove('opacity-0');
+        panel.classList.remove('translate-y-full');
+      }, 10);
+    }
+
+    function closeBottomSheet(){
+      var overlay = document.getElementById('bottomSheetOverlay');
+      var panel = document.getElementById('bottomSheetPanel');
+      overlay.classList.add('opacity-0');
+      panel.classList.add('translate-y-full');
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+      }, 300);
+    }
+
+    function validate(){
+      if(type==='tray'){
+        if(!rec.tray_number){ toastShow('请扫描有效托盘条码'); return false; }
+        if(rec.convert_to_loose){ if(!rec.conversion_goods_sku || !rec.conversion_goods_qty || !rec.conversion_goods_unit){ toastShow('请填写散货商品号/有效数量/单位'); return false; } }
+      } else {
+        if(!rec.goods?.sku){ toastShow('请填写散货商品号'); return false; }
+        if(!(rec.actual_quantity && Number(rec.actual_quantity)>0)){ toastShow('请填写有效的散货数量'); return false; }
+        if(!rec.actual_unit){ toastShow('请填写数量单位'); return false; }
+        if(rec.convert_to_tray && !rec.conversion_new_tray){ toastShow('请扫描有效托盘条码'); return false; }
+      }
+      if(rec.photos.length<1){ toastShow('请至少拍摄 1 张现场照片'); return false; }
+      if((rec.has_damage || rec.is_oversized) && rec.photos.length<2){ toastShow('破损或大件需至少 2 张现场照片'); return false; }
+      if(rec.has_damage && !rec.damage_type){ toastShow('请填写破损类型'); return false; }
+      // Removed oversize supervision validation as requested
+      return true;
+    }
+
+    function save(){ if(readonly) { cancel(); return; }
+      if(!validate()) return;
+      var key='unloadRecords:'+taskId;
+      try{
+        var raw=localStorage.getItem(key);
+        var arr= raw?JSON.parse(raw):[];
+        if(isEdit){
+          var idx = arr.findIndex(function(r){ return (r.record_id||r.id)===recordId; });
+          if(idx>=0){
+            var originalStatus = arr[idx].status;
+            var keepStatus = originalStatus==='done' ? 'done' : 'saved';
+            rec.status = keepStatus;
+            arr[idx] = rec;
+          } else {
+            rec.status = 'saved';
+            arr.push(rec);
+          }
+        } else {
+          rec.status='saved';
+          arr.push(rec);
+        }
+        localStorage.setItem(key, JSON.stringify(arr));
+      }catch(e){ console.error(e); }
+      toastShow('记录已保存','ok');
+      setTimeout(function(){ window.location.href = 'operator-unloading-task.html?task_id='+encodeURIComponent(taskId)+'&refresh=true'; }, 800);
+    }
+    function cancel(){
+      if(from==='task_detail'){
+        window.location.href = 'operator-task-detail.html?task_id='+encodeURIComponent(taskId);
+      } else {
+        window.location.href = 'operator-unloading-task.html?task_id='+encodeURIComponent(taskId)+'&refresh=true';
+      }
+    }
+
+    function renderCard(){
+      var title = (readonly? '查看卸车记录 · ' : (isEdit? '编辑卸车记录 · ' : '新建卸车记录 · ')) + (type==='tray'?'整托':'散货');
+      var html = '';
+      html += `<div class='text-lg font-bold text-gray-800 mb-4 flex items-center gap-2'>
+                 <div class="w-1 h-5 bg-indigo-600 rounded-full"></div>
+                 ${title}
+               </div>`;
+      html += `<div class='grid grid-cols-1 gap-4 text-sm'>
+        ${type==='tray' ? `
+          <div>
+            <div class='text-gray-500 mb-1.5'>托盘码 <span class="text-red-500">*</span></div>
+            <div class='flex items-center gap-2'>
+              <input class='flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.tray_number||''}' oninput='rec.tray_number=this.value' placeholder="请扫描或输入" />
+              ${readonly?'':"<button class='p-2.5 rounded-xl bg-indigo-50 text-indigo-600 active:scale-95 transition-transform' onclick='scanTray()'><i class='fas fa-qrcode'></i></button>"}
+            </div>
+          </div>
+          <div class='mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100'>
+            <label class='inline-flex items-center gap-2 cursor-pointer'><input type='checkbox' class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" ${readonly?'disabled':''} ${rec.convert_to_loose?'checked':''} onchange='rec.convert_to_loose=this.checked; renderCard()' /> <span class="font-medium text-gray-700">拆托改为散货</span></label>
+          </div>
+          ${rec.convert_to_loose ? `
+          <div class="pl-3 border-l-2 border-indigo-100 space-y-3">
+            <div>
+              <div class='text-gray-500 mb-1.5'>商品号 <span class="text-red-500">*</span></div>
+              <div class='flex items-center gap-2'>
+                <input class='flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.conversion_goods_sku||''}' oninput='rec.conversion_goods_sku=this.value' placeholder="请扫描或输入" />
+                ${readonly?'':"<button class='p-2.5 rounded-xl bg-indigo-50 text-indigo-600 active:scale-95 transition-transform' onclick='scanGoods()'><i class='fas fa-qrcode'></i></button>"}
+              </div>
+            </div>
+            <div>
+              <div class='text-gray-500 mb-1.5'>商品名称（可选）</div>
+              <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} placeholder='可选，扫码自动带出' value='${rec.conversion_goods_name||''}' oninput='rec.conversion_goods_name=this.value' />
+            </div>
+            <div class='grid grid-cols-2 gap-3'>
+              <div>
+                <div class='text-gray-500 mb-1.5'>数量 <span class="text-red-500">*</span></div>
+                <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.conversion_goods_qty||''}' oninput='rec.conversion_goods_qty=this.value' type="number" />
+              </div>
+              <div>
+                <div class='text-gray-500 mb-1.5'>单位 <span class="text-red-500">*</span></div>
+                <div class='w-full px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 flex items-center justify-between cursor-pointer' onclick='openBottomSheet("选择单位", ["件","箱","托","kg"], rec.conversion_goods_unit, function(v){ rec.conversion_goods_unit=v; renderCard(); })'>
+                   <span class="${rec.conversion_goods_unit?'text-gray-800':'text-gray-400'}">${rec.conversion_goods_unit||'请选择'}</span>
+                   <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                </div>
+              </div>
+            </div>
+          </div>` : ''}
+        ` : `
+          <div>
+            <div class='text-gray-500 mb-1.5'>商品号 <span class="text-red-500">*</span></div>
+            <div class='flex items-center gap-2'>
+              <input class='flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.goods?.sku||''}' oninput='editLooseGoods("sku", this.value); renderCard()' placeholder="请扫描或输入" />
+              ${readonly?'':"<button class='p-2.5 rounded-xl bg-indigo-50 text-indigo-600 active:scale-95 transition-transform' onclick='scanGoods()'><i class='fas fa-qrcode'></i></button>"}
+            </div>
+          </div>
+          <div>
+            <div class='text-gray-500 mb-1.5'>商品名称（可选）</div>
+            <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} placeholder='可选，扫码自动带出' value='${rec.goods?.name||''}' oninput='editLooseGoods("name", this.value)' />
+          </div>
+          <div class='grid grid-cols-2 gap-3'>
+            <div>
+              <div class='text-gray-500 mb-1.5'>数量 <span class="text-red-500">*</span></div>
+              <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.actual_quantity||''}' oninput='rec.actual_quantity=this.value' type="number" />
+            </div>
+            <div>
+              <div class='text-gray-500 mb-1.5'>单位 <span class="text-red-500">*</span></div>
+              <div class='w-full px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 flex items-center justify-between cursor-pointer' onclick='openBottomSheet("选择单位", ["件","箱","托","kg"], rec.actual_unit, function(v){ rec.actual_unit=v; renderCard(); })'>
+                 <span class="${rec.actual_unit?'text-gray-800':'text-gray-400'}">${rec.actual_unit||'请选择'}</span>
+                 <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+              </div>
+            </div>
+          </div>
+          <div class='mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100'>
+            <label class='inline-flex items-center gap-2 cursor-pointer'><input type='checkbox' class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" ${readonly?'disabled':''} ${rec.convert_to_tray?'checked':''} onchange='rec.convert_to_tray=this.checked; renderCard()' /> <span class="font-medium text-gray-700">组盘为整托</span></label>
+          </div>
+          ${rec.convert_to_tray ? `
+          <div class="pl-3 border-l-2 border-indigo-100">
+            <div class='text-gray-500 mb-1.5'>托盘码 <span class="text-red-500">*</span></div>
+            <div class='flex items-center gap-2'>
+              <input class='flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.conversion_new_tray||''}' oninput='rec.conversion_new_tray=this.value' placeholder="请扫描或输入" />
+              ${readonly?'':"<button class='p-2.5 rounded-xl bg-indigo-50 text-indigo-600 active:scale-95 transition-transform' onclick='scanTray()'><i class='fas fa-qrcode'></i></button>"}
+            </div>
+          </div>` : ''}
+        `}
+      </div>`;
+
+      html += `
+      <div class='mt-6 pt-4 border-t border-gray-100'>
+        <div class='text-sm font-bold text-gray-800 mb-3 flex items-center gap-2'><i class="fas fa-exclamation-circle text-indigo-600"></i> 货物状态</div>
+        <div class='grid grid-cols-1 gap-2 text-sm'>
+          <label class='inline-flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors'><input type='checkbox' class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" ${readonly?'disabled':''} ${rec.is_oversized?'checked':''} onchange='rec.is_oversized=this.checked; renderCard()' /> <span>大件/超长/超重</span></label>
+        </div>
+        <div class='grid grid-cols-2 gap-3 mt-2 text-sm'>
+          <div>
+            <div class='text-gray-500 mb-1.5'>重量(kg)</div>
+            <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.oversized_info?.weight||''}' oninput='onOversize("weight", this.value)' type="number" />
+          </div>
+          <div>
+            <div class='text-gray-500 mb-1.5'>体积(m³)</div>
+            <input class='w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50' ${readonly?'disabled':''} value='${rec.oversized_info?.volume||''}' oninput='onOversize("volume", this.value)' type="number" />
+          </div>
+        </div>
+        ${rec.is_oversized ? `
+        <div class='mt-3 text-sm bg-gray-50 p-3 rounded-xl border border-gray-100'>
+          <div class='text-gray-500 mb-1.5'>长/宽/高(cm)</div>
+          <div class='grid grid-cols-3 gap-2'>
+            <input class='px-2 py-2 border border-gray-200 rounded-lg bg-white' ${readonly?'disabled':''} placeholder='长' value='${rec.oversized_info?.length||''}' oninput='onOversize("length", this.value)' type="number" />
+            <input class='px-2 py-2 border border-gray-200 rounded-lg bg-white' ${readonly?'disabled':''} placeholder='宽' value='${rec.oversized_info?.width||''}' oninput='onOversize("width", this.value)' type="number" />
+            <input class='px-2 py-2 border border-gray-200 rounded-lg bg-white' ${readonly?'disabled':''} placeholder='高' value='${rec.oversized_info?.height||''}' oninput='onOversize("height", this.value)' type="number" />
+          </div>
+        </div>
+        ` : ''}
+        <div class='mt-3 text-sm'>
+          <label class='inline-flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors'><input type='checkbox' class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" ${readonly?'disabled':''} ${rec.has_damage?'checked':''} onchange='rec.has_damage=this.checked; renderCard()' /> <span>货物破损</span></label>
+        </div>
+        ${rec.has_damage ? `
+        <div class='grid grid-cols-1 gap-3 mt-2 text-sm bg-red-50 p-3 rounded-xl border border-red-100'>
+          <div>
+            <div class='text-gray-500 mb-1.5'>破损类型 <span class="text-red-500">*</span></div>
+            <div class='w-full px-3 py-2 border border-red-200 rounded-xl bg-white flex items-center justify-between cursor-pointer' onclick='openBottomSheet("选择破损类型", ["包装破损","货品破损"], rec.damage_type, function(v){ rec.damage_type=v; renderCard(); })'>
+               <span class="${rec.damage_type?'text-gray-800':'text-gray-400'}">${rec.damage_type||'请选择'}</span>
+               <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+            </div>
+          </div>
+          <div>
+            <div class='text-gray-500 mb-1.5'>备注（可选）</div>
+            <input class='w-full px-3 py-2 border border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-white' ${readonly?'disabled':''} value='${rec.damage_desc||''}' oninput='rec.damage_desc=this.value' />
+          </div>
+        </div>` : ''}
+      </div>`;
+
+      html += `
+      <div class='mt-6 pt-4 border-t border-gray-100'>
+        <div class='text-sm font-bold text-gray-800 mb-3 flex items-center gap-2'>
+          <i class="fas fa-camera text-indigo-600"></i> 现场照片 <span class="text-red-500">*</span>
+        </div>
+        <div class='grid grid-cols-4 gap-3'>
+          ${(rec.photos||[]).map(function(p){ return `
+            <div class='relative aspect-square'>
+              <img src='${p.url||"https://via.placeholder.com/80?text=%E7%8E%B0%E5%9C%BA"}' class='w-full h-full rounded-xl object-cover border border-gray-200 shadow-sm' />
+              ${!readonly ? `<button class='absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center shadow-sm' onclick='deletePhoto("${p.id}")'><i class="fas fa-times"></i></button>` : ''}
+            </div>
+          `; }).join('')}
+          ${!readonly ? `
+          <button class='aspect-square rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 flex flex-col items-center justify-center hover:bg-gray-100 hover:border-gray-400 transition-colors' onclick='takePhoto()'>
+            <i class='fas fa-camera text-xl mb-1'></i>
+            <span class="text-xs">添加</span>
+          </button>` : ''}
+        </div>
+        <div class='text-xs text-gray-400 mt-2'>请拍摄至少 1 张照片，大件/破损需至少 2 张。</div>
+      </div>`;
+
+      document.getElementById('editCard').innerHTML = html;
+    }
+
+    if(readonly){
+       document.getElementById('btnSave').style.display='none';
+       document.getElementById('btnCancel').innerHTML='<i class="fas fa-arrow-left mr-1"></i>返回';
+       document.getElementById('btnCancel').className = 'flex-1 py-3 rounded-xl bg-white text-gray-600 font-medium shadow-sm border border-gray-100 hover:bg-gray-50 active:scale-[0.98] transition-transform';
+       document.getElementById('bottomBar').innerHTML = `<button onclick="cancel()" class="flex-1 py-3 rounded-xl bg-white text-gray-600 font-medium shadow-sm border border-gray-100 hover:bg-gray-50 active:scale-[0.98] transition-transform"><i class="fas fa-arrow-left mr-2"></i>返回</button>`;
+    } else {
+       document.getElementById('btnSave').addEventListener('click', save);
+       document.getElementById('btnCancel').addEventListener('click', cancel);
+    }
+    
+    renderCard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 资源管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    const url = new URL(location.href);
+    const focus = url.searchParams.get('focus') || 'doors';
+    const taskId = url.searchParams.get('task_id') || '';
+
+    initSimulatorLayout({
+      title: '资源管理 · 调度员',
+      titleIcon: 'fas fa-cubes',
+      role: 'dispatcher',
+      activeNav: 'operate',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="relative flex-1">
+              <input id="resourceSearch" class="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="搜索车牌/任务号" />
+              <button class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500" onclick="scanSearch()"><i class="fas fa-camera"></i></button>
+            </div>
+            <button class="px-3 py-2 text-sm rounded bg-indigo-600 text-white" onclick="goSearch()"><i class="fas fa-search mr-1"></i>搜索</button>
+          </div>
+
+          <div id="doorOverview" class="overflow-x-auto mb-3">
+            <div id="doorCards" class="flex gap-2"></div>
+          </div>
+
+          <div id="pendingQueueSection" class="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100">
+            <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+              <button id="tabPending" class="flex-none px-4 py-1.5 rounded-full bg-indigo-50 text-indigo-600 font-medium transition-colors text-sm">待分配</button>
+              <button id="tabAbnormal" class="flex-none px-4 py-1.5 rounded-full bg-gray-50 text-gray-600 font-medium transition-colors text-sm">异常</button>
+              <button id="tabAll" class="flex-none px-4 py-1.5 rounded-full bg-gray-50 text-gray-600 font-medium transition-colors text-sm">全部</button>
+            </div>
+            <div id="pendingQueue" class="space-y-3"></div>
+          </div>
+
+          
+        </div>
+      `
+    });
+
+    const doors = [
+      { id: 'A-01', status: 'working', queue: 3, supportsOversize: true },
+      { id: 'A-02', status: 'full', queue: 10, supportsOversize: false },
+      { id: 'B-01', status: 'paused', queue: 4, supportsOversize: true },
+      { id: 'B-02', status: 'limited', queue: 2, supportsOversize: false },
+      { id: 'C-01', status: 'closed', queue: 0, supportsOversize: true }
+    ];
+
+    const tasks = [
+      { id: 'TN20240520011', plate: '沪C12345', status: 'pending', wait: 15 },
+      { id: 'TN20240520012', plate: '沪D88888', status: 'queue', wait: 5 },
+      { id: 'TN20240520013', plate: '沪A99999', status: 'abnormal', wait: 20 },
+      { id: 'TN20240520014', plate: '沪B11111', status: 'pending', wait: 8 }
+    ];
+
+    function scanSearch(){
+      scanOverlay({ onDone: function(){
+        const v = '沪C12345';
+        document.getElementById('resourceSearch').value = v;
+        goSearch();
+      }});
+    }
+
+    function goSearch(){
+      const q = (document.getElementById('resourceSearch').value||'').trim();
+      if(!q){ toastShow('请输入搜索内容'); return; }
+      window.location.href = 'dispatcher-resource-search.html?q=' + encodeURIComponent(q);
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      const input = document.getElementById('resourceSearch');
+      input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ goSearch(); } });
+    });
+
+    function renderDoorOverview(){
+      const box = document.getElementById('doorCards');
+      box.innerHTML = '';
+      doors.forEach(d=>{
+        const card = document.createElement('button');
+        let bg = 'bg-gray-50 border-gray-100';
+        let dot = 'bg-gray-500';
+        if(d.status==='working') { bg = 'bg-green-50 border-green-100'; dot = 'bg-green-500'; }
+        else if(d.status==='full') { bg = 'bg-yellow-50 border-yellow-100'; dot = 'bg-yellow-500'; }
+        else if(d.status==='limited') { bg = 'bg-orange-50 border-orange-100'; dot = 'bg-orange-500'; }
+        else if(d.status==='paused') { bg = 'bg-red-50 border-red-100'; dot = 'bg-red-500'; }
+        else if(d.status==='closed') { bg = 'bg-gray-200 border-gray-300'; dot = 'bg-gray-800'; }
+        
+        card.className = `rounded-2xl p-3 min-w-[150px] text-left border ${bg}`;
+        const oz = d.supportsOversize ? '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded ml-1">大件</span>' : '';
+        card.innerHTML = `<div class='text-sm font-semibold text-gray-800 flex items-center'><span class='inline-block w-2 h-2 rounded-full ${dot} mr-2'></span>库门 ${d.id} ${oz}</div><div class='mt-1 text-xs text-gray-700'>状态：${labelDoorStatus(d.status)}</div><div class='text-xs text-gray-500 mt-1'>排队: ${d.queue}</div>`;
+        card.onclick = function(){ window.location.href = 'dispatcher-door-detail.html?door=' + encodeURIComponent(d.id); };
+        box.appendChild(card);
+      });
+    }
+
+    function labelDoorStatus(s){ 
+      if(s==='working') return '启用中'; 
+      if(s==='full') return '队列已满'; 
+      if(s==='limited') return '已限制'; 
+      if(s==='paused') return '已暂停'; 
+      if(s==='closed') return '已关闭';
+      return s; 
+    }
+
+    let queueTab = 'pending';
+    function renderQueue(){
+      const list = document.getElementById('pendingQueue');
+      list.innerHTML = '';
+      let filtered = tasks.slice();
+      if(queueTab==='pending') filtered = filtered.filter(x=>x.status==='pending');
+      if(queueTab==='abnormal') filtered = filtered.filter(x=>x.status==='abnormal');
+      if(filtered.length===0){ list.innerHTML = `<div class='text-sm text-gray-600'>暂无数据</div>`; return; }
+      filtered.forEach(t=>{
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 active:scale-[0.99] transition-transform';
+        let statusColor = 'text-gray-500';
+        if(t.status === 'abnormal') statusColor = 'text-red-500';
+        
+        row.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-gray-800">${t.plate}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">${t.id} <span class="mx-1">·</span> <span class="${statusColor}"><i class="far fa-clock mr-1"></i>${t.wait}分</span></div>
+                </div>
+            </div>
+            <button class='w-8 h-8 rounded-full bg-white text-gray-400 flex items-center justify-center shadow-sm' onclick=\"event.stopPropagation(); goTask('${t.id}')\">
+                <i class="fas fa-chevron-right text-xs"></i>
+            </button>
+        `;
+        row.onclick = function(){ goTask(t.id); };
+        list.appendChild(row);
+      });
+    }
+
+    function goTask(id){ window.location.href = 'dispatcher-task-detail.html?task_id=' + encodeURIComponent(id); }
+
+    function scrollToSection(name){
+      let el = null;
+      if(name==='doors') el = document.getElementById('doorOverview');
+      if(name==='queue') el = document.getElementById('pendingQueueSection');
+      if(el){ el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }
+
+    renderDoorOverview();
+    setQueueTabs();
+    renderQueue();
+    document.getElementById('tabPending').onclick = function(){ queueTab='pending'; setQueueTabs(); renderQueue(); };
+    document.getElementById('tabAbnormal').onclick = function(){ queueTab='abnormal'; setQueueTabs(); renderQueue(); };
+    document.getElementById('tabAll').onclick = function(){ queueTab='all'; setQueueTabs(); renderQueue(); };
+    function setQueueTabs(){
+      const base = 'flex-none px-4 py-1.5 rounded-full font-medium transition-colors text-sm ';
+      const active = 'bg-indigo-600 text-white shadow-md shadow-indigo-200';
+      const inactive = 'bg-gray-100 text-gray-600';
+
+      document.getElementById('tabPending').className = base + (queueTab==='pending' ? active : inactive);
+      document.getElementById('tabAbnormal').className = base + (queueTab==='abnormal' ? active : inactive);
+      document.getElementById('tabAll').className = base + (queueTab==='all' ? active : inactive);
+    }
+
+    setTimeout(function(){ scrollToSection(focus); }, 300);
+  </script>
+</body>
+</html>

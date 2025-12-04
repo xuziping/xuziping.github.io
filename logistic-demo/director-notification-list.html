@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 通知</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '通知 · 监护/主管',
+      titleIcon: 'fas fa-bell',
+      role: 'director',
+      activeNav: 'messages',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-bold text-gray-800">全部通知 <span id="msgCount" class="text-xs font-normal text-gray-500 ml-1">(0)</span></div>
+            <button class="w-8 h-8 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center active:scale-90 transition-transform" onclick="refreshList()"><i class="fas fa-rotate-right"></i></button>
+          </div>
+          
+          <!-- Filter Tabs -->
+          <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+             <button class="flex-none px-4 py-1.5 rounded-full bg-indigo-600 text-white text-xs font-medium shadow-sm">全部</button>
+             <button class="flex-none px-4 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">未读</button>
+             <button class="flex-none px-4 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">系统</button>
+          </div>
+
+          <div id="list" class="space-y-3"></div>
+        </div>
+      `
+    });
+  </script>
+
+  <script>
+    let appData=null;
+    function loadData(){ if(appData) return Promise.resolve(appData); const url=new URL('app-data.json',document.baseURI).href; if(location.protocol==='file:'){ appData=(window.APP_DATA_FALLBACK||{}); return Promise.resolve(appData); } return fetch(url).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(d=>{ appData=d; return d; }).catch(()=>{ appData=(window.APP_DATA_FALLBACK||{}); return appData; }); }
+    function getMessages(){ const msgs=(appData&&appData.messages&&appData.messages.director)||[]; return msgs; }
+    function formatTime(t){ try{ const d=new Date(t); const now=new Date(); const yyyy=d.getFullYear(); const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); const hh=String(d.getHours()).padStart(2,'0'); const mi=String(d.getMinutes()).padStart(2,'0'); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const day=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const diff=(today-day)/86400000; if(diff===0) return `今天 ${hh}:${mi}`; if(diff===1) return `昨天 ${hh}:${mi}`; return `${yyyy}-${mm}-${dd} ${hh}:${mi}`; }catch(e){ return String(t); } }
+
+    function render(){ loadData().then(()=>{
+      const list = document.getElementById('list');
+      list.innerHTML='';
+      const messages = getMessages();
+      
+      const countEl = document.getElementById('msgCount');
+      if(countEl) countEl.textContent = `(${messages.length})`;
+
+      if(messages.length === 0) {
+        list.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-12">
+            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-3">
+              <i class="fas fa-inbox text-2xl"></i>
+            </div>
+            <div class="text-gray-400 text-sm">暂无新通知</div>
+          </div>
+        `;
+        return;
+      }
+
+      messages.forEach(m=>{
+        const row = document.createElement('div');
+        
+        const isRead = m.read;
+        const rowClass = isRead ? 'bg-white border-gray-100' : 'bg-indigo-50/40 border-indigo-100';
+        const iconClass = isRead ? 'text-gray-400 bg-gray-100' : 'text-indigo-600 bg-indigo-100';
+        const titleClass = isRead ? 'text-gray-600' : 'text-gray-900 font-bold';
+        
+        row.className = `${rowClass} rounded-2xl p-4 shadow-sm border active:scale-[0.99] transition-transform relative overflow-hidden`;
+        row.style.cursor='pointer';
+
+        row.innerHTML = `
+          <div class="flex gap-3 relative z-10">
+            <div class="flex-none w-10 h-10 rounded-full ${iconClass} flex items-center justify-center">
+              <i class="fas fa-bell"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+               <div class="flex items-start justify-between mb-1">
+                 <div class="text-sm ${titleClass} truncate pr-4">${m.title}</div>
+                 <div class="text-[10px] text-gray-400 whitespace-nowrap mt-0.5">${formatTime(m.time)}</div>
+               </div>
+               <div class="text-xs text-gray-500 line-clamp-2 leading-relaxed">${m.body || '暂无详情内容...'}</div>
+            </div>
+          </div>
+        `;
+        row.addEventListener('click', ()=>openDetail(m.id));
+        list.appendChild(row);
+      });
+    }); }
+
+    function openDetail(id){ window.location.href = 'director-notification-detail.html?id=' + encodeURIComponent(id); }
+    function refreshList(){
+      const icon = document.querySelector('.fa-rotate-right');
+      if(icon){
+        icon.classList.add('fa-spin');
+        setTimeout(()=>icon.classList.remove('fa-spin'), 1000);
+      }
+      render();
+    }
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 任务详情</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+  <!-- 布局由 simulator-layout.js 自动创建 -->
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    // 初始化布局
+    initSimulatorLayout({
+      title: '任务详情 · 监护/主管',
+      titleIcon: 'fas fa-clipboard-check',
+      role: 'director',
+      activeNav: 'tasks',
+      content: `
+        <div class="flex flex-col h-full relative">
+          <!-- 顶部背景装饰 -->
+          <div class="absolute top-0 left-0 right-0 h-32 bg-indigo-50 rounded-b-[3rem] -z-10"></div>
+
+          <div class="flex-1 overflow-y-auto px-4 py-4 pb-28 scrollbar-hide">
+            <!-- 任务概览卡片 -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative overflow-hidden">
+              <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-10 -mt-10 opacity-50"></div>
+              
+              <div class="flex justify-between items-start mb-2 relative z-10">
+                 <div>
+                   <div class="text-xs text-gray-500 mb-1">任务号</div>
+                   <div id="tfId" class="text-xl font-bold text-gray-800 tracking-tight">--</div>
+                 </div>
+                 <div id="tfCategoryBadge" class="px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">进仓任务</div>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-50 relative z-10">
+                <div>
+                   <div class="text-xs text-gray-400 mb-1">当前状态</div>
+                   <div id="tfStatus" class="text-sm font-bold text-indigo-600">--</div>
+                </div>
+                <div class="text-right">
+                   <div class="text-xs text-gray-400 mb-1">已等待</div>
+                   <div id="tfWait" class="text-sm font-medium text-gray-700">--</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 选项卡导航 -->
+            <div class="flex gap-2 overflow-x-auto scrollbar-hide mb-4 pb-1">
+              <button id="tabBasic" class="flex-none px-4 py-2 rounded-full text-sm font-bold bg-indigo-600 text-white shadow-sm shadow-indigo-200 transition-all">基本信息</button>
+              <button id="tabGuardView" class="flex-none px-4 py-2 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">监护记录</button>
+              <button id="tabDispatch" class="flex-none px-4 py-2 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">调度信息</button>
+              <button id="tabCargo" class="flex-none px-4 py-2 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">货物信息</button>
+              <button id="tabRecord" class="flex-none px-4 py-2 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">物流日志</button>
+            </div>
+
+            <!-- 内容面板 -->
+            <div id="panelBasic" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+              <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">库门信息</div>
+                  <div id="tfDoor" class="font-medium text-gray-800">--</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">车牌号码</div>
+                  <div id="tfPlate" class="font-medium text-gray-800">--</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">货主信息</div>
+                  <div id="tfOwner" class="font-medium text-gray-800 truncate">--</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">预报大件</div>
+                  <div id="cgOversizeInfo" class="font-medium text-gray-800">--</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">司机姓名</div>
+                  <div id="tfDriverName" class="font-medium text-gray-800">--</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1">司机联系方式</div>
+                  <div id="tfDriverPhone" class="font-medium text-gray-800">--</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="panelGuardView" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 hidden">
+              <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center"><i class="fas fa-shield-alt text-indigo-500 mr-2"></i>监护详情</h3>
+              
+              <div class="mb-4">
+                <div class="text-xs text-gray-500 mb-2">现场拍照</div>
+                <div id="gvPhotos" class="flex flex-wrap gap-2"></div>
+              </div>
+              
+              <div>
+                <div class="text-xs text-gray-500 mb-2">监护备注</div>
+                <div id="gvRemark" class="text-sm text-gray-700 bg-gray-50 rounded-xl p-3 border border-gray-100 leading-relaxed">--</div>
+              </div>
+            </div>
+
+            <div id="panelDispatch" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 hidden">
+              <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center"><i class="fas fa-truck-moving text-indigo-500 mr-2"></i>调度信息</h3>
+              <div class="space-y-3 text-sm">
+                <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                  <span class="text-gray-500">队列位置</span>
+                  <span id="dpQueue" class="font-semibold text-gray-800">--</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                  <span class="text-gray-500">门位变更</span>
+                  <span id="dpDoorChange" class="font-semibold text-gray-800">--</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-500">限制状态</span>
+                  <span id="dpLimit" class="font-semibold text-gray-800">--</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="panelCargo" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 hidden">
+              <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center"><i class="fas fa-box text-indigo-500 mr-2"></i>货物信息</h3>
+              <div class="space-y-3 text-sm">
+                <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                  <span class="text-gray-500">件数</span>
+                  <span class="font-medium text-gray-800"><span id="cgCount">--</span> 件</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                  <span class="text-gray-500">重量</span>
+                  <span class="font-medium text-gray-800"><span id="cgWeight">--</span> kg</span>
+                </div>
+                <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                  <span class="text-gray-500">体积</span>
+                  <span class="font-medium text-gray-800"><span id="cgVolume">--</span> m³</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-500">预报大件</span>
+                  <span id="cgOversize" class="font-medium text-gray-800">--</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="panelRecord" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 hidden">
+              <h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center"><i class="fas fa-history text-indigo-500 mr-2"></i>物流日志</h3>
+              <div id="rcList" class="space-y-3 relative pl-2">
+                <!-- Timeline line -->
+                <div class="absolute top-2 bottom-2 left-[7px] w-0.5 bg-gray-100 -z-10"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 底部操作栏 -->
+          <div class="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-lg shadow-gray-200 border border-gray-100 p-3 z-40 flex items-center gap-3 max-w-md mx-auto">
+             <button class="p-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors" onclick="goBack()">
+               <i class="fas fa-arrow-left"></i>
+             </button>
+             <div id="btnArea" class="flex-1">
+               <button id="btnAction" class="w-full py-3 rounded-xl bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-200 active:scale-[0.98] transition-transform flex items-center justify-center">
+                 <i id="btnIcon" class="fas fa-briefcase mr-2"></i><span id="btnText">审批</span>
+               </button>
+             </div>
+          </div>
+
+        </div>
+      `
+    });
+
+    // 页面逻辑
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const taskId = qs('task_id') || 'TN20240520021';
+    const origin = (function(){ const o=qs('origin'); if(o==='guard' || o==='approval') return o; return 'guard'; })();
+    const sample = {
+      id: taskId,
+      status: 'waiting',
+      wait: 15,
+      door: 'B-02',
+      plate: '沪B77889',
+      customer: '上海物流有限公司', pack: '散货', specialHasOversize: true,
+      cargo: { count: 24, weight: 1280, volume: 9.6 },
+      records: [ { t: '09:20', d: '申请强制完成' }, { t: '09:30', d: '等待审批' } ],
+      dispatch: { queue: '排位 3', doorChange: '无', limit: '正常' }
+    };
+
+    function render(){
+      document.getElementById('tfId').textContent = sample.id;
+      document.getElementById('tfStatus').textContent = origin==='guard' ? '待监护' : '待审批';
+      document.getElementById('tfCategoryBadge').textContent = sample.category || '进仓任务';
+      document.getElementById('tfWait').textContent = sample.wait+' 分钟';
+      
+      // Basic Info
+      document.getElementById('tfDoor').textContent = sample.door || '-';
+      document.getElementById('tfPlate').textContent = sample.plate || '-';
+      document.getElementById('tfOwner').textContent = sample.customer || '-';
+      
+      // Mock driver info since sample doesn't have it usually
+      const driverName = sample.driver || '张师傅';
+      const driverPhone = sample.driverPhone || '13800138000';
+      document.getElementById('tfDriverName').textContent = driverName;
+      document.getElementById('tfDriverPhone').textContent = driverPhone;
+      
+      document.getElementById('cgOversizeInfo').textContent = sample.specialHasOversize ? '是' : '否';
+
+      document.getElementById('cgCount').textContent = sample.cargo.count;
+      document.getElementById('cgWeight').textContent = sample.cargo.weight;
+      document.getElementById('cgVolume').textContent = sample.cargo.volume;
+      
+      // 状态徽标已移至概览第二行，无需额外元素更新
+
+      const oz = document.getElementById('cgOversize'); if(oz){ oz.textContent = sample.specialHasOversize ? '是' : '否'; }
+      
+      const list = document.getElementById('rcList');
+      list.innerHTML = '<div class="absolute top-2 bottom-2 left-[7px] w-0.5 bg-gray-100 -z-10"></div>'; // reset with line
+      
+      sample.records.forEach(r=>{ 
+        const row=document.createElement('div'); 
+        row.className='flex items-start gap-3'; 
+        row.innerHTML=`
+          <div class="w-3.5 h-3.5 rounded-full bg-indigo-100 border-2 border-white shadow-sm mt-1 relative z-10"></div>
+          <div class="flex-1">
+             <div class="text-xs text-gray-400 mb-0.5">${r.t}</div>
+             <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">${r.d}</div>
+          </div>
+        `; 
+        list.appendChild(row); 
+      });
+      
+      document.getElementById('dpQueue').textContent = sample.dispatch.queue;
+      document.getElementById('dpDoorChange').textContent = sample.dispatch.doorChange;
+      document.getElementById('dpLimit').textContent = sample.dispatch.limit;
+    }
+
+    function active(tab){ 
+      ['Basic','Cargo','Record','Dispatch','GuardView'].forEach(x=>{ 
+        const btn=document.getElementById('tab'+x); 
+        const panel=document.getElementById('panel'+x); 
+        if(btn && panel){ 
+          if(x===tab){ 
+            btn.className = 'flex-none px-4 py-2 rounded-full text-sm font-bold bg-indigo-600 text-white shadow-sm shadow-indigo-200 transition-all';
+            panel.classList.remove('hidden'); 
+          } else { 
+            btn.className = 'flex-none px-4 py-2 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all';
+            panel.classList.add('hidden'); 
+          } 
+        } 
+      }); 
+    }
+    
+    function goBack(){ if(document.referrer){ history.back(); } else { window.location.href = 'director-task-list.html'; } }
+    function goAction(){ if(origin==='guard'){ window.location.href = 'director-guard.html?task_id=' + encodeURIComponent(taskId); } else { window.location.href = 'director-ops.html?q=' + encodeURIComponent(taskId); } }
+    document.getElementById('btnAction').onclick = goAction;
+    
+    let appData=null;
+    function loadData(){ if(appData) return Promise.resolve(appData); const url=new URL('app-data.json',document.baseURI).href; if(location.protocol==='file:'){ appData=(window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{}, operatorTasks:[] }); return Promise.resolve(appData); } return fetch(url).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(d=>{ appData=d; return d; }).catch(()=>{ appData=(window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{}, operatorTasks:[] }); return appData; }); }
+
+    function initAction(){ 
+      const t=document.getElementById('btnText'); 
+      const i=document.getElementById('btnIcon'); 
+      const area=document.getElementById('btnArea'); 
+      const d=(appData&&appData.operatorTaskDetails)||{}; 
+      const det=d[taskId]||{}; 
+      const photosKey='guardPhotos:'+taskId; 
+      const hasGuardDone = (det.state==='进仓完成') || !!localStorage.getItem(photosKey);
+
+      if(hasGuardDone){ 
+        const badge=document.createElement('div'); 
+        badge.className='w-full py-3 rounded-xl font-medium flex items-center justify-center bg-blue-50 text-blue-700'; 
+        badge.innerHTML='<i class="fas fa-shield-alt mr-2"></i>已监护完成'; 
+        area.innerHTML=''; 
+        area.appendChild(badge); 
+        showGuardTab(); 
+      }
+      else { 
+        t.textContent='大件监护'; 
+        i.className='fas fa-shield-alt mr-2'; 
+        document.getElementById('btnAction').onclick = function(){
+             window.location.href = 'director-guard.html?task_id=' + encodeURIComponent(taskId);
+        };
+      }
+    }
+
+    function showGuardTab(){ 
+      const btn=document.getElementById('tabGuardView'); 
+      const panel=document.getElementById('panelGuardView'); 
+      if(!btn || !panel) return; 
+      btn.onclick=function(){ active('GuardView'); renderGuardReadonly(); }; 
+    }
+    
+    function renderGuardReadonly(){ 
+      const photosKey='guardPhotos:'+taskId; 
+      const remarkKey='guardRemark:'+taskId; 
+      let photos=[]; 
+      let remark=''; 
+      try{ 
+        const p=localStorage.getItem(photosKey); 
+        const r=localStorage.getItem(remarkKey); 
+        if(p) photos=JSON.parse(p)||[]; 
+        if(r) remark=r||''; 
+      }catch(e){} 
+      
+      // MOCK DATA if empty
+      if(photos.length===0 && !remark){
+         photos = ['https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&w=200&q=80', 'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?ixlib=rb-4.0.3&w=200&q=80'];
+         remark = '货物外包装完好，防倾斜标签正常。大件货物已进行加固处理。';
+      }
+
+      const grid=document.getElementById('gvPhotos'); 
+      const rm=document.getElementById('gvRemark'); 
+      if(grid){ 
+        grid.innerHTML=''; 
+        photos.forEach(url=>{ 
+          const box=document.createElement('div'); 
+          box.className='w-20 h-20 rounded-lg overflow-hidden border border-gray-200'; 
+          box.innerHTML=`<img src='${url}' class='w-full h-full object-cover'/>`; 
+          grid.appendChild(box); 
+        }); 
+        if(photos.length===0) grid.innerHTML='<span class="text-xs text-gray-400 italic">无照片</span>';
+      } 
+      if(rm){ rm.textContent = remark || '无备注'; } 
+    }
+
+    document.getElementById('tabBasic').onclick = function(){ active('Basic'); };
+    document.getElementById('tabCargo').onclick = function(){ active('Cargo'); };
+    document.getElementById('tabRecord').onclick = function(){ active('Record'); };
+    document.getElementById('tabDispatch').onclick = function(){ active('Dispatch'); };
+
+    render(); loadData().then(()=>{ initAction(); }); active('Basic');
+    document.getElementById('tabGuardView').onclick=function(){ active('GuardView'); renderGuardReadonly(); };
+  </script>
+</body>
+</html>

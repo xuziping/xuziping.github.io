@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 首页</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '首页工作台 · 调度员',
+      titleIcon: 'fas fa-home',
+      role: 'dispatcher',
+      activeNav: 'home',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <!-- Greeting -->
+          <div class="flex items-center justify-between mb-6">
+             <div>
+               <div class="text-2xl font-bold text-gray-800">早安，调度员</div>
+               <div class="text-xs text-gray-500 mt-1">今日也是充满活力的一天 🌞</div>
+             </div>
+             <div class="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform" onclick="window.location.href='dispatcher-profile.html'">
+               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" class="w-full h-full object-cover" />
+             </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('pending')">
+              <div class="text-xs text-gray-500 mb-1 z-10">待我处理</div>
+              <div id="statPending" class="text-2xl font-bold text-indigo-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-indigo-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openDoorList('all')">
+              <div class="text-xs text-gray-500 mb-1 z-10">库门</div>
+              <div id="statDoors" class="text-2xl font-bold text-orange-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-orange-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('completed')">
+              <div class="text-xs text-gray-500 mb-1 z-10">已完成</div>
+              <div id="statCompleted" class="text-2xl font-bold text-green-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-green-500 opacity-20"></div>
+            </button>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="text-sm font-bold text-gray-800 mb-3">常用功能</div>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform" onclick="goOps('plate')">
+               <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 flex-none">
+                   <i class="fas fa-id-card"></i>
+               </div>
+               <div class="text-left">
+                   <div class="font-bold text-gray-800 text-sm">车号校对</div>
+                   <div class="text-[10px] text-gray-400">车牌校对</div>
+               </div>
+            </button>
+          </div>
+
+          <!-- Pending Tasks List -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-4 px-1">
+              <div class="font-bold text-gray-800 flex items-center"><i class="fas fa-clock text-indigo-500 mr-2"></i>待办事项</div>
+              <button class="w-8 h-8 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center active:scale-90 transition-transform" onclick="refresh()"><i class="fas fa-rotate-right"></i></button>
+            </div>
+            <div id="pendingList"></div>
+          </div>
+        </div>
+      `
+    });
+  </script>
+
+  <script>
+    let appData = null;
+    function loadData(){
+        const url = new URL('app-data.json', document.baseURI).href;
+        if(location.protocol === 'file:'){
+            // Fallback for local file system if fetch not supported
+            appData = (window.APP_DATA_FALLBACK || {}); 
+            return Promise.resolve(appData);
+        }
+        return fetch(url).then(r => r.json()).then(d => { appData = d; return d; }).catch(e=>{ console.error(e); return {}; });
+    }
+
+    function openList(filter){ window.location.href = `dispatcher-task-list.html?filter=${encodeURIComponent(filter)}`; }
+    function openDoorList(filter){ window.location.href = `dispatcher-door-list.html?filter=${encodeURIComponent(filter)}`; }
+    function goOps(tab){
+      if(tab==='plate') window.location.href = 'dispatcher-plate-check.html';
+    }
+    function refresh(){ render(); }
+
+    function formatDuration(diffMinutes) {
+        if (diffMinutes < 60) return diffMinutes + 'm';
+        const h = Math.floor(diffMinutes / 60);
+        if (h < 24) return h + 'h';
+        const d = Math.floor(h / 24);
+        return d + 'd';
+    }
+
+    function render(){
+        loadData().then(data => {
+            const tasks = data.inboundTasks || [];
+            const doors = data.doors || [];
+            
+            // Stats
+            const pendingCount = tasks.filter(t => t.status === 'pending').length;
+            const doorCount = doors.length;
+            const completedCount = tasks.filter(t => t.status === 'completed' || t.stage === 'completed').length;
+
+            document.getElementById('statPending').textContent = pendingCount;
+            document.getElementById('statDoors').textContent = doorCount;
+            document.getElementById('statCompleted').textContent = completedCount;
+
+            // Pending List
+            const list = document.getElementById('pendingList');
+            list.innerHTML = '';
+            const pendingTasks = tasks.filter(t => t.status === 'pending').slice(0, 5);
+            
+            if(pendingTasks.length === 0){
+                list.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">暂无待办事项</div>';
+                return;
+            }
+
+            pendingTasks.forEach(t => {
+                const item = document.createElement('div');
+                const plate = t.plate || t.prePlate || '--';
+                const isOversize = (t.cargo && t.cargo.weight > 1000) || (t.packType === 'oversize') || (t.type === 'oversize'); 
+                const oversizeTag = isOversize ? '<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 flex-none">大件</span>' : '';
+                
+                // Status label
+                const statusMap = { 'pending': '待分配', 'queue': '排队中', 'working': '作业中' };
+                const statusLabel = statusMap[t.status] || t.status;
+                const statusBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 flex-none">${statusLabel}</span>`;
+
+                item.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform cursor-pointer flex items-center justify-between';
+                item.onclick = () => { window.location.href = `dispatcher-task-detail.html?task_id=${t.id}`; };
+                
+                const waitText = formatDuration(t.wait || 0);
+                
+                // Line 2: Door / Plate
+                const door = t.door || '--';
+                const line2 = `${door} / ${plate}`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center flex-none">
+                            <span class="text-[10px] text-indigo-400 leading-none mb-1">等待</span>
+                            <span class="text-sm font-bold text-indigo-600 leading-none">${waitText}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-bold text-gray-800 flex items-center truncate">${t.id} ${oversizeTag}</div>
+                            <div class="text-xs text-gray-500 mt-1 font-medium truncate">${line2}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${statusBadge}
+                        <i class="fas fa-chevron-right text-gray-300 text-xs flex-none"></i>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        });
+    }
+
+    refresh();
+  </script>
+</body>
+</html>

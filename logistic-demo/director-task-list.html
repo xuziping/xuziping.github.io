@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 任务清单</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '任务清单 · 监护/主管',
+      titleIcon: 'fas fa-list',
+      role: 'director',
+      activeNav: 'tasks',
+      content: `
+        <div class="flex flex-col h-full relative bg-gray-50">
+          <div class="flex-none px-6 py-4 bg-white border-b border-gray-100 z-10">
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input id="search" class="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="搜索任务号/车牌" />
+              </div>
+              <div id="sortTrigger" class="px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-600 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform">
+                <span id="sortText">按时间顺序</span>
+                <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl">
+              <button id="tabPending" class="flex-1 py-2 rounded-lg text-xs font-medium transition-all shadow-sm bg-white text-indigo-600">待我处理</button>
+              <button id="tabQueue" class="flex-1 py-2 rounded-lg text-xs font-medium transition-all text-gray-500 hover:text-gray-700">他人处理中</button>
+              <button id="tabDone" class="flex-1 py-2 rounded-lg text-xs font-medium transition-all text-gray-500 hover:text-gray-700">已完成</button>
+            </div>
+          </div>
+
+          <div id="list" class="flex-1 overflow-y-auto p-4 pb-28 space-y-3 scrollbar-hide"></div>
+        </div>
+      `
+    });
+  </script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilter = urlParams.get('filter') || 'pending';
+    let currentFilter = initialFilter;
+    let currentSort = 'time';
+    
+    // Mock Data including different types and states
+    const tasks = [
+      { id: 'TN20240530001', type: 'guard', category:'进仓', plate:'沪G12999', door:'A-02', status: 'pending', statusText:'待监护', wait: 12, priority: 'high', created_at: Date.now() - 12*60000 },
+      { id: 'TN20240530002', type: 'normal', category:'收货', plate:'苏B67890', door:'-',    status: 'queue',   statusText:'待分配库门', wait: 45, priority: 'normal', created_at: Date.now() - 45*60000 },
+      { id: 'TN20240530003', type: 'normal', category:'出仓', plate:'浙C11223', door:'B-02', status: 'completed', statusText:'已进仓', wait: 0, priority: 'normal', created_at: Date.now() - 120*60000 },
+      { id: 'TN20240530004', type: 'normal', category:'移仓', plate:'皖D44556', door:'C-05', status: 'queue',   statusText:'待叫车', wait: 15, priority: 'normal', created_at: Date.now() - 15*60000 },
+      { id: 'TN20240530005', type: 'oversize', category:'进仓', plate:'沪E99888', door:'A-03', status: 'queue',   statusText:'卸车中', wait: 5, priority: 'normal', created_at: Date.now() - 5*60000 }
+    ];
+
+    const sortOptions = [
+        { value: 'time', label: '按时间顺序' },
+        { value: 'type', label: '按任务类型' }
+    ];
+    const sortPanel = window.createSelectionPanel({
+        id: 'sortPanel',
+        title: '排序方式',
+        confirmText: '确认',
+        onConfirm: function(val){
+            if(!val) return;
+            currentSort = val;
+            const label = sortOptions.find(o=>o.value===val)?.label || val;
+            document.getElementById('sortText').textContent = label;
+            sortPanel.close();
+            render();
+        }
+    });
+    document.getElementById('sortTrigger').onclick = function(){
+        sortPanel.open(sortOptions, currentSort);
+    };
+
+    function setActiveTabs(){
+      const tabs = ['tabPending', 'tabQueue', 'tabDone'];
+      const filters = ['pending', 'queue', 'completed'];
+      const labels = ['待我处理', '他人处理中', '已完成'];
+      
+      tabs.forEach((id, idx) => {
+        const el = document.getElementById(id);
+        el.textContent = labels[idx];
+        if(currentFilter === filters[idx]){
+          el.className = 'flex-1 py-2 rounded-lg text-xs font-bold transition-all shadow-sm bg-white text-indigo-600';
+        } else {
+          el.className = 'flex-1 py-2 rounded-lg text-xs font-medium transition-all text-gray-500 hover:text-gray-700';
+        }
+      });
+    }
+
+    document.getElementById('tabPending').onclick = ()=>{ currentFilter='pending'; setActiveTabs(); render(); };
+    document.getElementById('tabQueue').onclick = ()=>{ currentFilter='queue'; setActiveTabs(); render(); };
+    document.getElementById('tabDone').onclick = ()=>{ currentFilter='completed'; setActiveTabs(); render(); };
+    document.getElementById('search').oninput = render;
+
+    function goDetail(id, type){ 
+        // Redirect based on type/origin
+        const origin = (type==='guard'?'guard':'approval'); 
+        window.location.href = 'director-task-detail.html?task_id=' + encodeURIComponent(id) + '&origin=' + origin; 
+    }
+    
+    function goConsole(e, id, type){ 
+        e.stopPropagation();
+        if(type==='guard' || type==='oversize'){ 
+            window.location.href = 'director-guard.html?task_id=' + encodeURIComponent(id); 
+        } else { 
+            window.location.href = 'director-ops.html?q=' + encodeURIComponent(id); 
+        } 
+    }
+
+    function render(){
+      const search = document.getElementById('search').value.trim().toLowerCase();
+      
+      let filtered = tasks.filter(t => {
+        if(currentFilter === 'pending') return t.status === 'pending';
+        if(currentFilter === 'queue') return t.status === 'queue';
+        return t.status === 'completed';
+      });
+
+      if(search){ 
+        filtered = filtered.filter(t=> (t.id||'').toLowerCase().includes(search) || (t.plate||'').toLowerCase().includes(search)); 
+      }
+
+      if(currentSort==='time'){
+        filtered.sort((a,b)=> (b.created_at||0) - (a.created_at||0)); 
+      } else {
+        filtered.sort((a,b)=> (a.category||'').localeCompare(b.category||'') || (b.created_at||0) - (a.created_at||0));
+      }
+
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      if(filtered.length===0){ 
+        list.innerHTML = `<div class='flex flex-col items-center justify-center py-12 text-gray-400'><i class="fas fa-clipboard-list text-4xl mb-3 opacity-20"></i><div class="text-xs">暂无相关任务</div></div>`; 
+        return; 
+      }
+      
+      filtered.forEach(t=>{
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:scale-[0.99] transition-transform cursor-pointer relative overflow-hidden';
+        item.onclick = () => goDetail(t.id, t.type);
+
+        const diffSeconds = (t.wait || 0) * 60;
+        const waitText = window.formatDurationSmart ? window.formatDurationSmart(diffSeconds) : t.wait + '分钟';
+
+        // Status Badge logic
+        let statusColor = 'bg-gray-100 text-gray-600';
+        let statusLabel = t.statusText || '未知';
+        
+        if(t.status==='completed') { statusColor = 'bg-green-50 text-green-600'; }
+        else if(t.status==='pending') { statusColor = 'bg-blue-50 text-blue-600'; }
+        else if(t.status==='queue') { statusColor = 'bg-yellow-50 text-yellow-600'; }
+
+        // Row 2 Content (Unified)
+        const row2 = `
+          <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-1">
+            <div class="flex items-center"><i class="fas fa-door-open w-4 text-center mr-1.5 text-gray-300"></i><span class="text-gray-700 font-medium">${(!t.door || t.door==='-') ? '待分配' : t.door}</span></div>
+            <div class="flex items-center"><i class="fas fa-truck w-4 text-center mr-1.5 text-gray-300"></i><span class="text-gray-700 font-medium truncate">${t.plate||'--'}</span></div>
+          </div>
+        `;
+        
+        // Row 3 Content (Only for Waiting Me)
+        let row3 = '';
+        if(currentFilter === 'pending'){
+          row3 = `
+            <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-50">
+              <div class="flex items-center text-xs text-gray-500 font-medium">
+                <i class="fas fa-stopwatch mr-1.5 text-indigo-400"></i>等待 ${waitText}
+              </div>
+              <button class="px-4 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold shadow-sm shadow-indigo-200 active:scale-95 transition-transform" onclick="goConsole(event, '${t.id}', '${t.type}')">
+                处理
+              </button>
+            </div>
+          `;
+        }
+
+        item.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">${t.category||'审批'}</span>
+              <span class="font-bold text-gray-800 text-sm tracking-tight">${t.id}</span>
+            </div>
+            <span class="${statusColor.replace('bg-','text-').split(' ')[1]} text-xs font-bold">${statusLabel}</span>
+          </div>
+          
+          ${row2}
+
+          ${row3}
+        `;
+        
+        list.appendChild(item);
+      });
+    }
+
+    setActiveTabs();
+    render();
+  </script>
+</body>
+</html>

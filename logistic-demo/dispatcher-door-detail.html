@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 库门详情</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    const url = new URL(location.href);
+    const doorId = url.searchParams.get('door') || 'A-01';
+
+    let doorInfo = {};
+    let queueVehicles = [];
+    let doors = [];
+
+    function loadData(){
+        const url = new URL('app-data.json', document.baseURI).href;
+        if(location.protocol === 'file:'){
+            // Fallback for local file system if fetch not supported
+            const d = (window.APP_DATA_FALLBACK || {});
+            processData(d);
+            return Promise.resolve(d);
+        }
+        return fetch(url).then(r => r.json()).then(d => {
+             processData(d);
+        }).catch(e=>{ console.error(e); toastShow('加载数据失败'); });
+    }
+
+    function processData(d){
+             const allDoors = d.doors || [];
+             const targetDoor = allDoors.find(x => x.id === doorId);
+             if(!targetDoor){
+                 toastShow('库门不存在');
+                 setTimeout(()=>window.history.back(),1000);
+                 return;
+             }
+             doorInfo = targetDoor;
+             
+             // Filter tasks from inboundTasks for this door queue
+             const tasks = d.inboundTasks || [];
+             queueVehicles = tasks.filter(t => t.door === doorId && t.status === 'queue');
+             
+             doors = allDoors; // For transfer list
+             
+             renderDoorCard();
+             renderQueue();
+             renderOpsButtons();
+    }
+
+    initSimulatorLayout({
+      title: '库门详情 · ' + doorId,
+      titleIcon: 'fas fa-door-open',
+      role: 'dispatcher',
+      activeNav: 'operate',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div id="doorCard" class="rounded-2xl p-4 mb-3 border transition-colors duration-200">
+            <!-- Populated by renderDoorCard -->
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="flex items-center justify-between mb-3">
+               <div class="text-sm font-semibold text-gray-800">队列管理</div>
+               <div class="text-xs text-gray-500" id="controlStatus"></div>
+            </div>
+            
+            <div id="queueList" class="space-y-2 mb-4"></div>
+
+            <div class="border-t border-gray-100 pt-3">
+              <div class="text-xs text-gray-600 mb-2">操作控制</div>
+              <div id="opsButtons" class="grid grid-cols-2 gap-2"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Pause Modal -->
+        <div id="pauseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-end sm:items-center justify-center p-4 transition-opacity duration-200">
+           <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-xl transform transition-transform duration-200 translate-y-full sm:translate-y-0">
+             <div class="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <div class="text-lg font-bold text-gray-800">暂停库门 - ${doorId}</div>
+                <button onclick="closePauseModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+             </div>
+             
+             <div class="p-4">
+               <div class="mb-4">
+                 <div class="text-sm font-bold text-gray-800 mb-3">暂停原因 <span class="text-red-500">*</span></div>
+                 <div class="space-y-2">
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="pauseReason" value="设备故障" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">设备故障 <span class="text-xs text-gray-500 font-normal">(升降平台/门禁/叉车等)</span></span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="pauseReason" value="道路堵塞" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">道路/通道堵塞</span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="pauseReason" value="人员不足" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">人员不足</span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="pauseReason" value="other" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">其他</span>
+                   </label>
+                   <input id="pauseReasonOther" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm hidden mt-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="请输入具体原因">
+                 </div>
+               </div>
+
+               <div class="mb-6">
+                 <div class="text-sm font-bold text-gray-800 mb-3">预计恢复时间</div>
+                 <div class="grid grid-cols-2 gap-2">
+                   <label class="cursor-pointer">
+                     <input type="radio" name="pauseTime" value="不确定" checked class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">不确定</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="pauseTime" value="30分钟" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">30分钟</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="pauseTime" value="1小时" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">1小时</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="pauseTime" value=">1小时" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">大于1小时</div>
+                   </label>
+                 </div>
+               </div>
+
+               <button class="w-full py-3 rounded-xl bg-red-600 text-white font-medium shadow-lg shadow-red-200 active:scale-[0.98] transition-transform" onclick="submitPause()">确认暂停</button>
+             </div>
+           </div>
+        </div>
+
+        <!-- Limit Modal -->
+        <div id="limitModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-end sm:items-center justify-center p-4 transition-opacity duration-200">
+           <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-xl transform transition-transform duration-200 translate-y-full sm:translate-y-0">
+             <div class="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <div class="text-lg font-bold text-gray-800">限制派车 - ${doorId}</div>
+                <button onclick="closeLimitModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+             </div>
+             
+             <div class="p-4">
+               <div class="mb-4">
+                 <div class="text-sm font-bold text-gray-800 mb-3">限制原因 <span class="text-red-500">*</span></div>
+                 <div class="space-y-2">
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="limitReason" value="队列过长" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">队列过长</span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="limitReason" value="作业效率下降" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">作业效率下降</span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="limitReason" value="临时调度策略" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">临时调度策略</span>
+                   </label>
+                   <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors [&:has(:checked)]:border-indigo-500 [&:has(:checked)]:bg-indigo-50">
+                     <input type="radio" name="limitReason" value="other" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                     <span class="ml-3 text-sm font-medium text-gray-700">其他</span>
+                   </label>
+                   <input id="limitReasonOther" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm hidden mt-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="请输入具体原因">
+                 </div>
+               </div>
+
+               <div class="mb-6">
+                 <div class="text-sm font-bold text-gray-800 mb-3">预计恢复时间</div>
+                 <div class="grid grid-cols-2 gap-2">
+                   <label class="cursor-pointer">
+                     <input type="radio" name="limitTime" value="不确定" checked class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">不确定</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="limitTime" value="30分钟" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">30分钟</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="limitTime" value="1小时" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">1小时</div>
+                   </label>
+                   <label class="cursor-pointer">
+                     <input type="radio" name="limitTime" value=">1小时" class="peer hidden">
+                     <div class="text-center px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-all">大于1小时</div>
+                   </label>
+                 </div>
+               </div>
+
+               <button class="w-full py-3 rounded-xl bg-orange-600 text-white font-medium shadow-lg shadow-orange-200 active:scale-[0.98] transition-transform" onclick="submitLimit()">确认限制</button>
+             </div>
+           </div>
+        </div>
+      `
+    });
+
+    function renderDoorCard(){
+      const card = document.getElementById('doorCard');
+      const d = doorInfo;
+      
+      let bg = 'bg-gray-50 border-gray-100';
+      let dot = 'bg-gray-500';
+      if(d.status==='working') { bg = 'bg-green-50 border-green-100'; dot = 'bg-green-500'; }
+      else if(d.status==='limited') { bg = 'bg-orange-50 border-orange-100'; dot = 'bg-orange-500'; }
+      else if(d.status==='paused') { bg = 'bg-red-50 border-red-100'; dot = 'bg-red-500'; }
+      else if(d.status==='closed') { bg = 'bg-gray-200 border-gray-300'; dot = 'bg-gray-800'; }
+
+      card.className = `rounded-2xl p-5 mb-4 border ${bg} shadow-sm relative overflow-hidden`;
+      
+      const oz = d.supportsOversize ? 
+        `<div class="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-bl-xl border-b border-l border-indigo-200">
+           支持大件
+         </div>` : '';
+      
+      let currentInfo = '';
+      if(d.status==='working'){
+         currentInfo = `<div class="mt-3 pt-3 border-t border-gray-200/60 flex items-center justify-between">
+          <div class="text-xs text-gray-500">当前状态</div>
+          <div class="flex items-center text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>正常作业中
+          </div>
+        </div>`;
+      }
+      
+      let pauseInfoHtml = '';
+      if(d.status === 'paused' && d.pauseInfo){
+          pauseInfoHtml = `<div class="mt-2 text-xs bg-red-50 text-red-700 px-3 py-2 rounded-lg border border-red-100 flex items-start">
+            <i class="fas fa-info-circle mt-0.5 mr-2"></i>
+            <div>
+              <div class="font-bold">已暂停作业</div>
+              <div class="opacity-80">操作人: ${d.pauseInfo.user} · 时间: ${d.pauseInfo.time}</div>
+            </div>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        ${oz}
+        <div class="flex items-start mb-4">
+          <div class="w-12 h-12 rounded-2xl ${bg.replace('bg-', 'bg-opacity-50 bg-')} flex items-center justify-center mr-3 border border-gray-100 shadow-sm">
+            <i class="fas fa-warehouse text-xl ${dot.replace('bg-', 'text-')}"></i>
+          </div>
+          <div>
+            <div class="text-lg font-bold text-gray-900 flex items-center">
+              库门 ${d.id}
+            </div>
+            <div class="text-xs text-gray-500 mt-0.5 flex items-center">
+               <span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium mr-2 border border-gray-200">${labelDoorStatus(d.status)}</span>
+               <span>排队: <b class="text-gray-900">${queueVehicles.length}</b> 辆</span>
+            </div>
+          </div>
+        </div>
+        ${pauseInfoHtml}
+        ${currentInfo}
+      `;
+
+      updateControlStatus();
+    }
+
+    function labelDoorStatus(s){ 
+      if(s==='working') return '启用中'; 
+      if(s==='limited') return '已限制'; 
+      if(s==='paused') return '已暂停'; 
+      if(s==='closed') return '已关闭';
+      return s; 
+    }
+
+    function updateControlStatus(){
+      const el = document.getElementById('controlStatus');
+      let callText = '叫车进行中';
+      let recvText = '接收新车中';
+      
+      if(doorInfo.status === 'paused' || doorInfo.status === 'closed'){
+        callText = '叫车已暂停';
+        recvText = '接收已限制';
+      } else if(doorInfo.status === 'limited'){
+        callText = '叫车进行中';
+        recvText = '接收已限制';
+      }
+
+      el.textContent = `${callText} / ${recvText}`;
+    }
+
+    function renderOpsButtons(){
+      const box = document.getElementById('opsButtons');
+      const s = doorInfo.status;
+      box.innerHTML = '';
+
+      if(s === 'working'){
+         // Call Vehicle Button
+         const btnCall = document.createElement('button');
+         btnCall.className = 'col-span-2 h-12 text-sm font-medium rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 flex items-center justify-center active:scale-[0.98] transition-all';
+         btnCall.innerHTML = '<i class="fas fa-bullhorn mr-2"></i>呼叫下一辆';
+         btnCall.onclick = function(){ toastShow('已发送呼叫指令', 'ok'); };
+         box.appendChild(btnCall);
+
+         // Pause Button
+         const btnPause = document.createElement('button');
+         btnPause.className = 'h-12 text-sm font-medium rounded-xl bg-white text-red-600 border border-red-100 shadow-sm flex items-center justify-center active:scale-[0.98] transition-all';
+         btnPause.innerHTML = '<i class="fas fa-pause mr-2"></i>暂停库门';
+         btnPause.onclick = openPauseModal;
+         box.appendChild(btnPause);
+
+         // Restrict Button
+         const btnLimit = document.createElement('button');
+         btnLimit.className = 'h-12 text-sm font-medium rounded-xl bg-white text-orange-600 border border-orange-100 shadow-sm flex items-center justify-center active:scale-[0.98] transition-all';
+         btnLimit.innerHTML = '<i class="fas fa-ban mr-2"></i>限制派车';
+         btnLimit.onclick = openLimitModal;
+         box.appendChild(btnLimit);
+      } else if (s === 'paused'){
+         const btnResume = document.createElement('button');
+         btnResume.className = 'col-span-2 h-12 text-sm font-medium rounded-xl bg-green-600 text-white shadow-lg shadow-green-200 flex items-center justify-center active:scale-[0.98] transition-all';
+         btnResume.innerHTML = '<i class="fas fa-play mr-2"></i>恢复正常作业';
+         btnResume.onclick = () => changeStatus('working');
+         box.appendChild(btnResume);
+      } else if (s === 'limited'){
+         // Call Vehicle Button
+         const btnCall = document.createElement('button');
+         btnCall.className = 'col-span-2 h-12 text-sm font-medium rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 flex items-center justify-center active:scale-[0.98] transition-all';
+         btnCall.innerHTML = '<i class="fas fa-bullhorn mr-2"></i>呼叫车辆 (受限模式)';
+         btnCall.onclick = function(){ toastShow('已发送呼叫指令', 'ok'); };
+         box.appendChild(btnCall);
+
+         const btnUnlimit = document.createElement('button');
+         btnUnlimit.className = 'h-12 text-sm font-medium rounded-xl bg-green-50 text-green-700 border border-green-200 shadow-sm flex items-center justify-center active:scale-[0.98] transition-all';
+         btnUnlimit.innerHTML = '<i class="fas fa-check mr-2"></i>恢复派车';
+         btnUnlimit.onclick = () => changeStatus('working');
+         box.appendChild(btnUnlimit);
+         
+         const btnPause = document.createElement('button');
+         btnPause.className = 'h-12 text-sm font-medium rounded-xl bg-white text-red-600 border border-red-100 shadow-sm flex items-center justify-center active:scale-[0.98] transition-all';
+         btnPause.innerHTML = '<i class="fas fa-pause mr-2"></i>暂停库门';
+         btnPause.onclick = openPauseModal;
+         box.appendChild(btnPause);
+      }
+    }
+    
+    // --- Pause Modal Logic ---
+    function openPauseModal(){
+        document.getElementById('pauseModal').classList.remove('hidden');
+        // Reset animations
+        const panel = document.querySelector('#pauseModal > div');
+        panel.classList.remove('translate-y-0');
+        panel.classList.add('translate-y-full', 'sm:translate-y-0'); // Initial state
+        setTimeout(() => {
+             panel.classList.remove('translate-y-full');
+             panel.classList.add('translate-y-0');
+        }, 10);
+
+        document.querySelectorAll('input[name="pauseReason"]').forEach(r => {
+            r.checked = false;
+            r.onchange = function(){
+                const isOther = this.value === 'other';
+                const otherInput = document.getElementById('pauseReasonOther');
+                if(isOther) otherInput.classList.remove('hidden'); else otherInput.classList.add('hidden');
+            };
+        });
+        document.getElementById('pauseReasonOther').value = '';
+        document.getElementById('pauseReasonOther').classList.add('hidden');
+    }
+    function closePauseModal(){ 
+        const panel = document.querySelector('#pauseModal > div');
+        panel.classList.remove('translate-y-0');
+        panel.classList.add('translate-y-full');
+        setTimeout(() => {
+            document.getElementById('pauseModal').classList.add('hidden'); 
+        }, 200);
+    }
+    function submitPause(){
+        const r = document.querySelector('input[name="pauseReason"]:checked');
+        if(!r){ toastShow('请选择暂停原因'); return; }
+        let reason = r.value;
+        if(reason === 'other'){
+            reason = document.getElementById('pauseReasonOther').value;
+            if(!reason){ toastShow('请输入具体原因'); return; }
+        }
+        // Time
+        const t = document.querySelector('input[name="pauseTime"]:checked');
+        const timeVal = t ? t.value : '不确定';
+        
+        closePauseModal();
+        changeStatus('paused', reason);
+    }
+    
+    // --- Limit Modal Logic ---
+    function openLimitModal(){
+        document.getElementById('limitModal').classList.remove('hidden');
+        // Reset animations
+        const panel = document.querySelector('#limitModal > div');
+        panel.classList.remove('translate-y-0');
+        panel.classList.add('translate-y-full', 'sm:translate-y-0'); // Initial state
+        setTimeout(() => {
+             panel.classList.remove('translate-y-full');
+             panel.classList.add('translate-y-0');
+        }, 10);
+
+        document.querySelectorAll('input[name="limitReason"]').forEach(r => {
+            r.checked = false;
+             r.onchange = function(){
+                const isOther = this.value === 'other';
+                const otherInput = document.getElementById('limitReasonOther');
+                if(isOther) otherInput.classList.remove('hidden'); else otherInput.classList.add('hidden');
+            };
+        });
+        document.getElementById('limitReasonOther').value = '';
+        document.getElementById('limitReasonOther').classList.add('hidden');
+    }
+    function closeLimitModal(){ 
+         const panel = document.querySelector('#limitModal > div');
+        panel.classList.remove('translate-y-0');
+        panel.classList.add('translate-y-full');
+        setTimeout(() => {
+            document.getElementById('limitModal').classList.add('hidden');
+        }, 200);
+    }
+    function submitLimit(){
+        const r = document.querySelector('input[name="limitReason"]:checked');
+        if(!r){ toastShow('请选择限制原因'); return; }
+        let reason = r.value;
+        if(reason === 'other'){
+             reason = document.getElementById('limitReasonOther').value;
+             if(!reason){ toastShow('请输入具体原因'); return; }
+        }
+        closeLimitModal();
+        changeStatus('limited', reason);
+    }
+
+    function changeStatus(newStatus, reason){
+       doorInfo.status = newStatus;
+       if(newStatus === 'paused'){
+           const now = new Date();
+           const hh = String(now.getHours()).padStart(2,'0');
+           const mm = String(now.getMinutes()).padStart(2,'0');
+           doorInfo.pauseInfo = { user: '我', time: `${hh}:${mm}` };
+       } else {
+           doorInfo.pauseInfo = null;
+       }
+       renderDoorCard();
+       renderOpsButtons();
+       const reasonText = reason ? ` (原因: ${reason})` : '';
+       toastShow('状态已更新为 ' + labelDoorStatus(newStatus) + reasonText, 'ok');
+    }
+
+    function renderQueue(){
+      const list = document.getElementById('queueList');
+      list.innerHTML = '';
+      if(queueVehicles.length === 0){
+        list.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-8 text-gray-400">
+            <div class="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-2">
+              <i class="fas fa-inbox text-xl"></i>
+            </div>
+            <div class="text-xs">当前队列无任务</div>
+          </div>
+        `;
+        return;
+      }
+      queueVehicles.forEach((task, index) => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm mb-2 last:mb-0';
+        
+        // Check for plate info, fallback to ID if missing, avoid undefined
+        const plateInfo = task.prePlate || task.plate || task.id || '--';
+        const driverInfo = task.driver ? `<span class="ml-2 text-gray-400 text-[10px] border-l border-gray-200 pl-2">${task.driver}</span>` : '';
+        
+        item.innerHTML = `
+          <div class="flex items-center">
+            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold mr-3 border border-indigo-100">
+              ${index + 1}
+            </div>
+            <div>
+              <div class="text-sm font-bold text-gray-900">${plateInfo}</div>
+              <div class="text-xs text-gray-500 mt-0.5 flex items-center">
+                任务 ${task.id} ${driverInfo}
+              </div>
+            </div>
+          </div>
+          <button onclick="openTransfer('${task.id}')" class="w-8 h-8 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center active:bg-gray-200 transition-colors">
+             <i class="fas fa-exchange-alt text-xs"></i>
+          </button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // Transfer Logic
+    let transferTargetId = '';
+    let transferPanel = window.createSelectionPanel({
+        id: 'transferPanel',
+        title: '选择目标库门',
+        confirmText: '确认转移',
+        onConfirm: function(val){
+             toastShow('已转移 '+(transferTargetId||'选中车辆')+' 到 '+val,'ok');
+             transferPanel.close();
+        }
+    });
+
+    function openTransfer(id){ 
+        transferTargetId = id || ''; 
+        // Filter out paused and limited doors
+        const validDoors = doors.filter(d => d.status !== 'paused' && d.status !== 'limited');
+        
+        const items = validDoors.map(d => {
+             const st = labelDoorStatus(d.status);
+             const oz = d.supportsOversize ? '支持大件' : '不支持大件';
+             return {
+                 value: d.id,
+                 label: `库门 ${d.id} · ${oz} · 排队 ${d.queue} · ${st}`
+             };
+        });
+        transferPanel.open(items);
+    }
+
+    // Init
+    // Wait for layout mount then load data
+    setTimeout(() => {
+        loadData();
+    }, 100);
+    
+    // Mount Panel
+    (function mountPanel(){ 
+        const screen=document.querySelector('.screen'); 
+        const pModal=document.getElementById('pauseModal');
+        if(pModal && screen){ screen.appendChild(pModal); }
+        const lModal=document.getElementById('limitModal');
+        if(lModal && screen){ screen.appendChild(lModal); }
+    })();
+
+  </script>
+</body>
+</html>

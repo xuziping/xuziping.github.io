@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 资源搜索</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    const url = new URL(location.href);
+    const qInit = url.searchParams.get('q') || '';
+
+    initSimulatorLayout({
+      title: '资源搜索 · 调度员',
+      titleIcon: 'fas fa-search',
+      role: 'dispatcher',
+      activeNav: 'operate',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="relative flex-1">
+              <input id="searchInput" class="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="输入车牌或任务号" />
+              <button class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500" onclick="openScan()"><i class="fas fa-camera"></i></button>
+            </div>
+            <button class="px-3 py-2 text-sm rounded bg-indigo-600 text-white shadow-sm active:scale-95 transition-transform" onclick="doSearch()"><i class="fas fa-search mr-1"></i>搜索</button>
+          </div>
+          <div id="resultList" class="space-y-3"></div>
+        </div>
+      `
+    });
+
+    let appData = null;
+    function loadData(){
+        const url = new URL('app-data.json', document.baseURI).href;
+        if(location.protocol === 'file:'){
+            appData = (window.APP_DATA_FALLBACK || {});
+            return Promise.resolve(appData);
+        }
+        return fetch(url).then(r => r.json()).then(d => { appData = d; return d; }).catch(e=>{ console.error(e); return {}; });
+    }
+
+    function openScan(){
+      scanOverlay({ onDone: function(){
+        const v = 'TN20240520011';
+        const input = document.getElementById('searchInput');
+        input.value = v;
+        doSearch();
+      }});
+    }
+
+    function doSearch(){
+      if(!appData){
+          loadData().then(()=>{ doSearch(); });
+          return;
+      }
+      const tasks = appData.inboundTasks || [];
+      const doors = appData.doors || [];
+      
+      const q = (document.getElementById('searchInput').value||'').trim().toLowerCase();
+      const list = document.getElementById('resultList');
+      list.innerHTML = '';
+      if(!q){ list.innerHTML = `<div class='card rounded-2xl p-4 text-center text-sm text-gray-600'>请输入搜索内容</div>`; return; }
+      
+      const taskMatched = tasks.filter(t=> t.id.toLowerCase().includes(q) || (t.plate && t.plate.toLowerCase().includes(q)) || (t.prePlate && t.prePlate.toLowerCase().includes(q)));
+      const doorMatched = doors.filter(d=> d.id.toLowerCase().includes(q));
+      
+      const showTask = function(t){
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-2xl p-4 shadow-sm border border-gray-100';
+        let badgeClass = 'bg-gray-100 text-gray-600';
+        if(t.status==='pending') badgeClass = 'bg-yellow-100 text-yellow-800';
+        else if(t.status==='queue') badgeClass = 'bg-blue-100 text-blue-800';
+        else if(t.status==='abnormal') badgeClass = 'bg-red-100 text-red-800';
+        else if(t.status==='working') badgeClass = 'bg-green-100 text-green-800';
+        
+        // Check oversize
+        const hasOversize = (t.cargo && t.cargo.weight > 2000) ? '是' : '否';
+        
+        let leftInfo = `库门: <span class="font-medium text-gray-700">${t.door||'-'}</span>`;
+        let rightBtn = `<button class='px-3 py-1.5 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors' onclick="goTask('${t.id}')">查看详情 <i class="fas fa-chevron-right ml-1 text-[10px]"></i></button>`;
+
+        if(t.status === 'pending'){
+             leftInfo = `预报大件: <span class="font-medium text-gray-700">${hasOversize}</span>`;
+             rightBtn = `<button class='px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm' onclick="goTask('${t.id}')">分配库门</button>`;
+        }
+        
+        item.innerHTML = `
+            <div class='flex items-center justify-between mb-2 cursor-pointer' onclick="goTask('${t.id}')">
+                <div class='flex items-center gap-2'>
+                    <span class='w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs'><i class="fas fa-box"></i></span>
+                    <div>
+                        <div class='text-sm font-bold text-gray-800'>${t.id}</div>
+                        <div class='text-xs text-gray-500'>${t.plate||t.prePlate||'--'}</div>
+                    </div>
+                </div>
+                <span class='px-2 py-1 rounded text-xs font-medium ${badgeClass}'>${labelOf(t.status)}</span>
+            </div>
+            <div class='flex items-center justify-between text-xs text-gray-500 mt-3 pt-3 border-t border-gray-50'>
+                <div>${leftInfo}</div>
+                ${rightBtn}
+            </div>
+        `;
+        list.appendChild(item);
+      };
+      const showDoor = function(d){
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-2xl p-4 shadow-sm border border-gray-100';
+        let badge = 'bg-gray-100 text-gray-600';
+        let dot = 'bg-gray-400';
+        if(d.status==='working') { badge = 'bg-green-100 text-green-800'; dot = 'bg-green-500'; }
+        else if(d.status==='idle') { badge = 'bg-gray-100 text-gray-600'; dot = 'bg-gray-400'; }
+        else { badge = 'bg-indigo-100 text-indigo-800'; dot = 'bg-indigo-500'; }
+        
+        item.innerHTML = `
+            <div class='flex items-center justify-between mb-2'>
+                <div class='flex items-center gap-2'>
+                    <span class='w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs'><i class="fas fa-door-open"></i></span>
+                    <div class='text-sm font-bold text-gray-800'>库门 ${d.id}</div>
+                </div>
+                <span class='px-2 py-1 rounded text-xs font-medium ${badge}'>
+                    <span class="inline-block w-1.5 h-1.5 rounded-full ${dot} mr-1"></span>${labelDoorStatus(d.status)}
+                </span>
+            </div>
+             <div class='flex items-center justify-end text-xs text-gray-500 mt-3 pt-3 border-t border-gray-50'>
+                <button class='px-3 py-1.5 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors' onclick=\"goDoor('${d.id}')\">查看详情 <i class="fas fa-chevron-right ml-1 text-[10px]"></i></button>
+            </div>
+        `;
+        list.appendChild(item);
+      };
+      taskMatched.forEach(showTask);
+      doorMatched.forEach(showDoor);
+      if(taskMatched.length===0 && doorMatched.length===0){ list.innerHTML = `<div class='card rounded-2xl p-4 text-center text-sm text-gray-600'>未找到匹配项</div>`; }
+    }
+
+    function labelOf(status){ if(status==='pending') return '待分配'; if(status==='queue') return '队列中'; return '异常'; }
+    function labelDoorStatus(s){ if(s==='working') return '作业中'; if(s==='idle') return '空闲'; if(s==='paused') return '已暂停'; if(s==='limited') return '限制中'; return s; }
+    function goTask(id){ window.location.href = 'dispatcher-task-detail.html?task_id=' + encodeURIComponent(id); }
+    function goDoor(id){ window.location.href = 'dispatcher-door-detail.html?door=' + encodeURIComponent(id); }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      const input = document.getElementById('searchInput');
+      input.value = qInit;
+      setTimeout(function(){ if(qInit) doSearch(); }, 100);
+    });
+  </script>
+</body>
+</html>

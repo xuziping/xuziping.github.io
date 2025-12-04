@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>调度员 · 我的</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '我的 · 调度员',
+      titleIcon: 'fas fa-user',
+      role: 'dispatcher',
+      activeNav: 'profile',
+      content: `
+        <div class="pb-28">
+          <!-- Header -->
+          <div class="bg-indigo-600 px-6 pt-8 pb-12 rounded-b-[3rem] shadow-lg shadow-indigo-200 mb-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
+            <div class="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-5 rounded-full -ml-10 -mb-10"></div>
+            
+            <div class="relative z-10 flex items-center gap-4">
+                <div class="w-16 h-16 rounded-full bg-white p-1 shadow-md">
+                    <div class="w-full h-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" class="w-full h-full object-cover" />
+                    </div>
+                </div>
+                <div class="text-white">
+                    <div class="text-xl font-bold">调度员01</div>
+                    <div class="text-indigo-200 text-sm mt-1 flex items-center">
+                        <span class="bg-indigo-500 bg-opacity-30 px-2 py-0.5 rounded text-xs mr-2">R1 级</span>
+                        <span>工号: DP-2024001</span>
+                    </div>
+                </div>
+            </div>
+          </div>
+
+          <div class="px-6 -mt-8 relative z-20">
+            <!-- Stats -->
+            <div class="bg-white rounded-2xl p-5 shadow-lg shadow-gray-100 border border-gray-50 flex justify-between mb-6">
+                <div class="text-center flex-1 border-r border-gray-100">
+                    <div class="text-2xl font-bold text-gray-800">12</div>
+                    <div class="text-xs text-gray-400 mt-1">今日任务</div>
+                </div>
+                <div class="text-center flex-1 border-r border-gray-100">
+                    <div class="text-2xl font-bold text-gray-800">98%</div>
+                    <div class="text-xs text-gray-400 mt-1">准点率</div>
+                </div>
+                <div class="text-center flex-1">
+                    <div class="text-2xl font-bold text-gray-800">45h</div>
+                    <div class="text-xs text-gray-400 mt-1">本周工时</div>
+                </div>
+            </div>
+
+            <!-- Menu -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <button class="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50 group">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm group-active:scale-90 transition-transform"><i class="fas fa-user-cog"></i></span>
+                        <span class="text-sm font-medium text-gray-700">账号设置</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+                </button>
+                <button class="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50 group">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center text-sm group-active:scale-90 transition-transform"><i class="fas fa-bell"></i></span>
+                        <span class="text-sm font-medium text-gray-700">通知设置</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+                </button>
+                <button class="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50 group">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-sm group-active:scale-90 transition-transform"><i class="fas fa-question-circle"></i></span>
+                        <span class="text-sm font-medium text-gray-700">帮助中心</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+                </button>
+                <button class="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-lg bg-gray-50 text-gray-600 flex items-center justify-center text-sm group-active:scale-90 transition-transform"><i class="fas fa-info-circle"></i></span>
+                        <span class="text-sm font-medium text-gray-700">关于版本</span>
+                    </div>
+                    <span class="text-xs text-gray-400">v0.0.1</span>
+                </button>
+            </div>
+
+            <button class="w-full py-3 rounded-xl bg-red-50 text-red-600 font-medium active:bg-red-100 transition-colors" onclick="logout()">
+                <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+            </button>
+          </div>
+        </div>
+      `
+    });
+  </script>
+  <script>
+    function logout(){ window.location.href = 'login.html'; }
+  </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 大件监护</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .big-btn { width: 100%; padding: 12px; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <!-- 布局由 simulator-layout.js 自动创建 -->
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    // 初始化布局
+    initSimulatorLayout({
+      title: '大件监护 · 监护/主管',
+      titleIcon: 'fas fa-shield-alt',
+      role: 'director',
+      activeNav: 'tasks',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="text-sm font-semibold text-gray-800 mb-2">扫描/输入任务号</div>
+            <div class="grid grid-cols-3 gap-2">
+              <input id="taskId" class="col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="任务号" />
+              <button id="scanTask" class="px-3 py-2 text-sm rounded bg-gray-100"><i class="fas fa-qrcode mr-1"></i>扫码</button>
+            </div>
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="text-sm font-semibold text-gray-800 mb-2">扫描/输入托盘号/货号</div>
+            <div class="grid grid-cols-3 gap-2">
+              <input id="itemId" class="col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="托盘号/货号" />
+              <button id="scanItem" class="px-3 py-2 text-sm rounded bg-gray-100"><i class="fas fa-qrcode mr-1"></i>扫码</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-lg shadow-gray-200 border border-gray-100 p-3 z-40 flex items-center gap-3 max-w-md mx-auto">
+            <button class="p-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+            <button id="goGuard" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-medium shadow-sm active:scale-[0.98] transition-transform flex items-center justify-center">
+              <i class="fas fa-shield-alt mr-2"></i>大件监护
+            </button>
+        </div>
+      `
+    });
+
+    // 页面逻辑
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const initTask = qs('task_id') || '';
+    if(initTask){
+      const i=document.getElementById('taskId');
+      if(i){ i.value = initTask; i.readOnly = true; i.classList.add('bg-gray-50','text-gray-600'); }
+      const s=document.getElementById('scanTask');
+      if(s) s.style.display='none';
+    }
+    document.getElementById('scanTask').onclick = function(){
+      scanOverlay({ text:'扫描任务号...', onDone: function(){
+        document.getElementById('taskId').value = 'TN20240530011';
+        toastShow('已扫描任务号','ok');
+      }});
+    };
+    document.getElementById('scanItem').onclick = function(){
+      scanOverlay({ text:'扫描托盘/货号...', onDone: function(){
+        document.getElementById('itemId').value = 'PLT-0001';
+        toastShow('已扫描托盘/货号','ok');
+      }});
+    };
+    document.getElementById('goGuard').onclick = function(){
+      const t=document.getElementById('taskId').value.trim();
+      const i=document.getElementById('itemId').value.trim();
+      if(!t || !i){
+        toastShow('请完整填写任务号与托盘/货号');
+        return;
+      }
+      window.location.href = 'director-guard-detail.html?task_id='+encodeURIComponent(t)+'&item_id='+encodeURIComponent(i);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>操作员 · 扫描卸车</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '扫描卸车 · 操作员',
+      titleIcon: 'fas fa-qrcode',
+      role: 'operator',
+      activeNav: 'operate',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <div class="card rounded-2xl p-4 mb-3 flex items-center justify-center">
+            <div class="w-[280px] h-[280px] border-2 border-dashed border-green-600 rounded-2xl flex items-center justify-center">
+              <div class="text-xs text-gray-600">1:1 扫描框 · 请对准条码</div>
+            </div>
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="flex items-center gap-2">
+              <input id="scanInput" class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder="模拟输入扫描结果" />
+              <button class="px-3 py-2 text-xs rounded bg-green-600 text-white" onclick="addScan()"><i class="fas fa-plus mr-1"></i>添加</button>
+            </div>
+            <div class="mt-2 text-xs text-gray-600">提示：每条记录可拍照、更改包装、删除</div>
+          </div>
+
+          <div class="card rounded-2xl p-4 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-semibold text-gray-800">扫描记录</div>
+              <div class="text-xs"><span id="progCur">0</span> / <span id="progTotal">10</span></div>
+            </div>
+            <div id="scanList" class="mt-2 space-y-2"></div>
+          </div>
+
+          <div class="card rounded-2xl p-4">
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-2 text-sm rounded bg-gray-100" onclick="doPhoto()"><i class="fas fa-camera mr-1"></i>立即拍照</button>
+              <button class="px-3 py-2 text-sm rounded bg-indigo-600 text-white" onclick="finish()"><i class="fas fa-check mr-1"></i>标记卸车完成并返回</button>
+            </div>
+          </div>
+          <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+             <div class="bg-white rounded-2xl p-4 w-72">
+               <div class="text-lg font-semibold text-gray-800 mb-2">确认提示</div>
+               <div class="text-sm text-gray-600 mb-4">确认删除该记录？</div>
+               <div class="grid grid-cols-2 gap-2">
+                 <button class="px-3 py-2 text-sm rounded bg-gray-100 text-gray-800" onclick="closeConfirmModal()">取消</button>
+                 <button class="px-3 py-2 text-sm rounded bg-red-600 text-white" onclick="confirmRemove()">删除</button>
+               </div>
+             </div>
+           </div>
+        </div>
+      `
+    });
+  </script>
+
+  <script>
+    function qs(name){ const u=new URLSearchParams(window.location.search); return u.get(name); }
+    const taskId = qs('task_id') || 'TN20240520001';
+    let scans = [];
+    const total = 10;
+
+    function addScan(){
+      const val = (document.getElementById('scanInput').value||'').trim();
+      if(!val){ toastShow('请输入扫描结果'); return; }
+      scans.push({ code: val, pack: 'pallet' });
+      document.getElementById('scanInput').value='';
+      renderList(); updateProg(); toastShow('已扫描: '+val,'ok');
+    }
+
+    function renderList(){
+      const list = document.getElementById('scanList');
+      list.innerHTML='';
+      scans.forEach((s,idx)=>{
+        const row = document.createElement('div');
+        row.className = 'bg-gray-50 rounded-xl p-3';
+        row.innerHTML = `
+          <div class='flex items-center justify-between'>
+            <div class='text-sm font-semibold text-gray-800'>${s.code}</div>
+            <div class='flex items-center gap-2'>
+              <select class='px-2 py-1 text-xs border border-gray-200 rounded' onchange="changePack(${idx},this.value)">
+                <option value='pallet' ${s.pack==='pallet'?'selected':''}>整托</option>
+                <option value='loose' ${s.pack==='loose'?'selected':''}>散货</option>
+                <option value='oversize' ${s.pack==='oversize'?'selected':''}>大件</option>
+              </select>
+              <button class='px-2 py-1 text-xs rounded bg-gray-100' onclick="doPhoto('${s.code}')"><i class='fas fa-camera'></i></button>
+              <button class='px-2 py-1 text-xs rounded bg-red-100 text-red-700' onclick="removeScan(${idx})"><i class='fas fa-trash'></i></button>
+            </div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    let removeTarget = -1;
+    function updateProg(){ document.getElementById('progCur').textContent = scans.length; document.getElementById('progTotal').textContent = total; }
+    function changePack(i,val){ scans[i].pack = val; toastShow('已更改包装','ok'); }
+    function doPhoto(code){ toastShow('拍照占位','ok'); }
+    
+    function removeScan(i){
+        removeTarget = i;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    
+    function closeConfirmModal(){
+        document.getElementById('confirmModal').classList.add('hidden');
+        removeTarget = -1;
+    }
+    
+    function confirmRemove(){
+        if(removeTarget > -1){
+            scans.splice(removeTarget, 1);
+            renderList();
+            updateProg();
+            toastShow('已删除');
+        }
+        closeConfirmModal();
+    }
+    
+    function finish(){ window.location.href = 'operator-task-detail.html?task_id=' + encodeURIComponent(taskId) + '&refresh=true'; }
+
+    updateProg(); renderList();
+  </script>
+</body>
+</html>

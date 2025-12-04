@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>操作员 · 首页</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    initSimulatorLayout({
+      title: '首页工作台 · 操作员',
+      titleIcon: 'fas fa-home',
+      role: 'operator',
+      activeNav: 'home',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <!-- Greeting -->
+          <div class="flex items-center justify-between mb-6">
+             <div>
+               <div class="text-2xl font-bold text-gray-800">早安，操作员</div>
+               <div class="text-xs text-gray-500 mt-1">今日也是充满活力的一天 🌞</div>
+             </div>
+             <div class="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform" onclick="window.location.href='operator-profile.html'">
+               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" class="w-full h-full object-cover" />
+             </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('waiting_me')">
+              <div class="text-xs text-gray-500 mb-1 z-10">待我处理</div>
+              <div id="statMy" class="text-2xl font-bold text-indigo-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-indigo-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('waiting_others')">
+              <div class="text-xs text-gray-500 mb-1 z-10">待他人处理</div>
+              <div id="statOthers" class="text-2xl font-bold text-gray-800 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-gray-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('completed')">
+              <div class="text-xs text-gray-500 mb-1 z-10">已完成</div>
+              <div id="statDone" class="text-2xl font-bold text-green-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-green-500 opacity-20"></div>
+            </button>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="text-sm font-bold text-gray-800 mb-3">常用功能</div>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform" onclick="goInbound()">
+              <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-none">
+                 <i class="fas fa-truck"></i>
+              </div>
+              <div class="text-left">
+                <div class="font-bold text-gray-800 text-sm">进仓受理</div>
+                <div class="text-[10px] text-gray-400">任务录入</div>
+              </div>
+            </button>
+            <button class="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform" onclick="goUnloading()">
+              <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 flex-none">
+                 <i class="fas fa-dolly"></i>
+              </div>
+              <div class="text-left">
+                <div class="font-bold text-gray-800 text-sm">卸车任务</div>
+                <div class="text-[10px] text-gray-400">卸货操作</div>
+              </div>
+            </button>
+          </div>
+
+          <!-- New Tasks List -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-4 px-1">
+              <div class="font-bold text-gray-800 flex items-center"><i class="fas fa-clock text-indigo-500 mr-2"></i>待办事项</div>
+              <button class="w-8 h-8 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center active:scale-90 transition-transform" onclick="refresh()"><i class="fas fa-rotate-right"></i></button>
+            </div>
+            <div id="focusList"></div>
+          </div>
+        </div>
+      `
+    });
+  </script>
+  <script>
+    let appData = null;
+    const APP_DATA_FALLBACK = {
+      operatorTasks: [
+        { id: 'TN20240530001', stage: 'waiting_inbound_accept', plate: '沪D23333', door: null, queue: null, waiting_me: true, type: 'pallet', category:'进仓' },
+        { id: 'TN20240530002', stage: 'waiting_door_assign', plate: '沪E45678', door: null, queue: null, waiting_me: false, type: 'loose', category:'进仓' },
+        { id: 'TN20240530003', stage: 'waiting_call', plate: '沪F88888', door: 'B-04', queue: '排位 2', waiting_me: false, type: 'pallet', category:'进仓' },
+        { id: 'TN20240530004', stage: 'waiting_unload', plate: '沪G12999', door: 'A-02', queue: '排位 1', waiting_me: true, type: 'loose', category:'进仓' },
+        { id: 'TN20240530005', stage: 'supervision', plate: '沪H77777', door: 'C-01', queue: '排位 3', waiting_me: false, type: 'oversize', category:'进仓' },
+        { id: 'TN20240530006', stage: 'completed', plate: '沪J55555', door: 'A-01', queue: null, waiting_me: false, type: 'pallet', category:'进仓' },
+        { id: 'TN20240530011', stage: 'unloading', plate: '沪P44556', door: 'A-03', queue: '排位 2', waiting_me: true, type: 'pallet', category:'进仓' }
+      ]
+    };
+    function loadData(){ if(appData) return Promise.resolve(appData); const url = new URL('app-data.json', document.baseURI).href; if(location.protocol==='file:'){ appData = APP_DATA_FALLBACK; return Promise.resolve(appData); } return fetch(url).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(d=>{ appData=d; return d; }).catch(()=>{ appData = APP_DATA_FALLBACK; return appData; }); }
+    function openList(filter){ window.location.href = `operator-task-list.html?filter=${encodeURIComponent(filter)}`; }
+    function goInbound(){ window.location.href = 'operator-inbound-accept.html'; }
+    function goUnloading(){ window.location.href = 'operator-unloading-task.html'; }
+    function refresh(){ renderFocus(); renderStats(); }
+    function countStats(){ const tasks=(appData.operatorTasks||[]); return {
+      my: tasks.filter(t=>t.waiting_me===true && t.stage!=='completed').length,
+      others: tasks.filter(t=>t.waiting_me!==true && t.stage!=='completed').length,
+      done: tasks.filter(t=>t.stage==='completed').length
+    }; }
+    function renderStats(){ const c=countStats(); document.getElementById('statMy').textContent = c.my; document.getElementById('statOthers').textContent = c.others; document.getElementById('statDone').textContent = c.done; }
+    function labelOfStage(stage){ if(stage==='waiting_unload') return '等待卸车'; if(stage==='unloading') return '卸车中'; if(stage==='waiting_inbound_accept') return '等待进仓受理'; if(stage==='waiting_door_assign') return '等待库门分配'; if(stage==='waiting_call') return '等待叫车'; if(stage==='supervision') return '监管介入'; if(stage==='completed') return '已完成'; return '待处理'; }
+    function renderFocus(){ 
+      const list=document.getElementById('focusList'); 
+      list.innerHTML=''; 
+      const tasks=(appData.operatorTasks||[]);
+      
+      // Filter priority tasks
+      const myTasks = tasks.filter(t => t.waiting_me === true || ['waiting_unload','unloading','waiting_inbound_accept'].includes(t.stage)).slice(0, 5);
+
+      if(myTasks.length === 0) {
+          list.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">暂无待办事项</div>';
+          return;
+      }
+
+      myTasks.forEach(t => {
+          const item = document.createElement('div');
+          // Mock wait time for demo since API doesn't provide it
+          const waitTime = Math.floor(Math.random() * 60) + 'm'; 
+          const statusLabel = labelOfStage(t.stage);
+          const plate = t.plate || '--';
+          
+          const line2 = t.door ? `${t.door} / ${plate}` : plate;
+          
+          item.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform cursor-pointer flex items-center justify-between';
+          item.onclick = function(){ window.location.href = 'operator-task-detail.html?task_id='+encodeURIComponent(t.id); };
+          
+          item.innerHTML = `
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center flex-none">
+                    <span class="text-[10px] text-indigo-400 leading-none mb-1">等待</span>
+                    <span class="text-sm font-bold text-indigo-600 leading-none">${waitTime}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-gray-800 flex items-center truncate">${t.id}</div>
+                    <div class="text-xs text-gray-500 mt-1 font-medium truncate">${line2}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 flex-none">${statusLabel}</span>
+                <i class="fas fa-chevron-right text-gray-300 text-xs flex-none"></i>
+            </div>
+          `;
+          list.appendChild(item);
+      });
+    }
+    loadData().then(()=>{ renderStats(); renderFocus(); });
+  </script>
+</body>
+</html>

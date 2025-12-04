@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 首页</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- 布局由 simulator-layout.js 自动创建 -->
+  
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    // 初始化布局
+    initSimulatorLayout({
+      title: '首页工作台 · 监护/主管',
+      titleIcon: 'fas fa-home',
+      role: 'director',
+      activeNav: 'home',
+      content: `
+        <div class="px-6 py-4 pb-28">
+          <!-- Greeting -->
+          <div class="flex items-center justify-between mb-6">
+             <div>
+               <div class="text-2xl font-bold text-gray-800">早安，监护/主管</div>
+               <div class="text-xs text-gray-500 mt-1">今日也是充满活力的一天 🌞</div>
+             </div>
+             <div class="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform" onclick="window.location.href='director-profile.html'">
+               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" class="w-full h-full object-cover" />
+             </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('approvals')">
+              <div class="text-xs text-gray-500 mb-1 z-10">待审批</div>
+              <div id="statApprovals" class="text-2xl font-bold text-indigo-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-indigo-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('guard')">
+              <div class="text-xs text-gray-500 mb-1 z-10">待监护</div>
+              <div id="statGuard" class="text-2xl font-bold text-orange-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-orange-500 opacity-20"></div>
+            </button>
+            <button class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center justify-center active:scale-95 transition-transform relative overflow-hidden group h-24" onclick="openList('done')">
+              <div class="text-xs text-gray-500 mb-1 z-10">已完成</div>
+              <div id="statDone" class="text-2xl font-bold text-green-600 z-10">--</div>
+              <div class="absolute bottom-0 w-full h-1 bg-green-500 opacity-20"></div>
+            </button>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="text-sm font-bold text-gray-800 mb-3">常用功能</div>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <button class="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform" onclick="goApprovalList()">
+              <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-none">
+                 <i class="fas fa-check-square"></i>
+              </div>
+              <div class="text-left">
+                <div class="font-bold text-gray-800 text-sm">审批</div>
+                <div class="text-[10px] text-gray-400">审批事项</div>
+              </div>
+            </button>
+            <button class="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform" onclick="goGuardPage()">
+              <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 flex-none">
+                 <i class="fas fa-shield-alt"></i>
+              </div>
+              <div class="text-left">
+                <div class="font-bold text-gray-800 text-sm">大件监护</div>
+                <div class="text-[10px] text-gray-400">监护与拍照</div>
+              </div>
+            </button>
+          </div>
+
+          <!-- New Requests List -->
+          <div class="mb-6">
+            <div class="flex items-center justify-between mb-4 px-1">
+              <div class="font-bold text-gray-800 flex items-center"><i class="fas fa-clock text-indigo-500 mr-2"></i>待办事项</div>
+              <button class="w-8 h-8 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center active:scale-90 transition-transform" onclick="refresh()"><i class="fas fa-rotate-right"></i></button>
+            </div>
+            <div id="focusList"></div>
+          </div>
+        </div>
+      `
+    });
+  </script>
+
+  <script>
+    // 页面逻辑
+    let appData = null;
+    function openList(filter){
+      if(filter === 'approvals'){
+        window.location.href = 'director-ops.html';
+      } else if(filter === 'guard'){
+        window.location.href = 'director-task-list.html?filter=pending';
+      } else if(filter === 'done'){
+        window.location.href = 'director-task-list.html?filter=completed';
+      }
+    }
+    function goApprovalList(){ window.location.href = 'director-ops.html'; }
+    function goGuardPage(){ window.location.href = 'director-guard.html'; }
+    function refresh(){ renderStats(); renderFocus(); }
+
+    function loadData(){ if(appData) return Promise.resolve(appData); const url=new URL('app-data.json',document.baseURI).href; if(location.protocol==='file:'){ appData = (window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{}, operatorTasks:[] }); return Promise.resolve(appData); } return fetch(url).then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); }).then(d=>{ appData=d; return d; }).catch(()=>{ appData = (window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{}, operatorTasks:[] }); return appData; }); }
+
+    function labelOf(t){ if(t==='force_complete') return '强制完成'; if(t==='pause') return '暂停'; if(t==='resume') return '解冻'; if(t==='issue') return '异常审批'; if(t==='pack_change') return '包装更改'; if(t==='call_resume') return '叫车/队列恢复'; if(t==='door_assign_change') return '库门安排/更改'; if(t==='queue_limit') return '队列限制'; if(t==='queue_unfreeze') return '解冻队列'; if(t==='oversize_call_unload') return '大件叫车/卸货'; return t; }
+
+    function countApprovals(){ const arr=(appData&&appData.approvals)||[]; return arr.filter(a=>a.status==='pending').length; }
+    function countGuard(){ const ts=(appData&&appData.operatorTasks)||[]; const d=(appData&&appData.operatorTaskDetails)||{}; return ts.filter(t=> (t.type==='oversize') && (d[t.id]&&d[t.id].state==='监管介入')).length; }
+    function countDone(){ const ts=(appData&&appData.operatorTasks)||[]; const d=(appData&&appData.operatorTaskDetails)||{}; const doneTasks = ts.filter(t=> (d[t.id]&&d[t.id].state==='进仓完成') || t.stage==='completed').length; const approvalsDone = ((appData&&appData.approvals)||[]).filter(a=> a.status!=='pending').length; return doneTasks + approvalsDone; }
+
+    function renderStats(){
+      document.getElementById('statApprovals').textContent = countApprovals();
+      document.getElementById('statGuard').textContent = countGuard();
+      document.getElementById('statDone').textContent = countDone();
+    }
+
+    function parseTime(s){ if(!s) return 0; const iso=s.replace(' ','T'); const t=Date.parse(iso); return isNaN(t)?0:t; }
+
+    function formatDuration(diffMinutes) {
+        if (diffMinutes < 60) return diffMinutes + '分钟';
+        const h = Math.floor(diffMinutes / 60);
+        if (h < 24) return h + '小时';
+        const d = Math.floor(h / 24);
+        if (d < 30) return d + '天';
+        const m = Math.floor(d / 30);
+        if (m < 12) return m + '个月';
+        const y = Math.floor(m / 12);
+        return y + '年';
+    }
+
+    function formatShortDate(ts) {
+        const d = new Date(ts);
+        return (d.getMonth()+1) + '月' + d.getDate() + '日';
+    }
+
+    function renderFocus(){
+      const list = document.getElementById('focusList');
+      list.innerHTML = '';
+      
+      const tasks = (appData&&appData.operatorTasks)||[];
+      const details = (appData&&appData.operatorTaskDetails)||{};
+      
+      // Helper to find task info
+      const findTask = (id) => tasks.find(t => t.id === id) || {};
+
+      const approvals=((appData&&appData.approvals)||[]).filter(a=>a.status==='pending').slice()
+        .map(a=>{
+            const t = findTask(a.task_id);
+            return { 
+                kind:'approval', 
+                title:labelOf(a.type), 
+                id:a.task_id, 
+                time:a.apply_time, 
+                ts: parseTime(a.apply_time),
+                plate: t.plate || '--',
+                door: t.door || '--'
+            };
+        });
+
+      const guards=tasks.filter(t=> (t.type==='oversize') && (details[t.id]&&details[t.id].state==='监管介入')).slice()
+        .map(t=>({ 
+            kind:'guard', 
+            title:'大件监护', 
+            id:t.id, 
+            time:t.state_time, 
+            ts: parseTime(t.state_time),
+            plate: t.plate || '--',
+            door: t.door || '--'
+        }));
+
+      const flat=[...approvals, ...guards].sort((a,b)=> (b.ts - a.ts));
+      
+      if(flat.length===0){
+        list.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">暂无待办事项</div>';
+        return;
+      }
+
+      flat.forEach(item=>{
+        const row = document.createElement('div');
+        row.className = 'bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3 active:scale-[0.99] transition-transform cursor-pointer flex items-center justify-between';
+        row.onclick=function(){ 
+            if(item.kind==='guard'){ 
+                window.location.href = 'director-task-detail.html?task_id='+encodeURIComponent(item.id)+'&origin=guard'; 
+            } else { 
+                window.location.href = 'director-ops.html?q='+encodeURIComponent(item.id); 
+            } 
+        };
+        
+        // Calculate wait time approx
+        const now = Date.now();
+        const diffM = Math.max(0, Math.floor((now - item.ts)/60000));
+        const waitText = formatDuration(diffM);
+        
+        // Status Badge
+        const statusLabel = item.kind==='approval' ? '待审批' : '待监护';
+        const statusClass = item.kind==='approval' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600';
+        const statusBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${statusClass} flex-none">${statusLabel}</span>`;
+
+        // Line 2: Door and Plate
+        const line2 = `${item.door} / ${item.plate}`;
+
+        row.innerHTML = `
+          <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center flex-none">
+                  <span class="text-[10px] text-indigo-400 leading-none mb-1">等待</span>
+                  <span class="text-sm font-bold text-indigo-600 leading-none">${waitText}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                  <div class="text-sm font-bold text-gray-800 flex items-center truncate">${item.id}</div>
+                  <div class="text-xs text-gray-500 mt-1 font-medium truncate">${line2}</div>
+              </div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${statusBadge}
+            <i class="fas fa-chevron-right text-gray-300 text-xs flex-none"></i>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    loadData().then(()=>{ renderStats(); renderFocus(); });
+  </script>
+</body>
+</html>

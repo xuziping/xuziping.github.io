@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>监护/主管 · 审批中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .sheet-mask { transition: opacity 0.3s ease; }
+    .sheet-panel { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    .sheet-open .sheet-mask { opacity: 1; pointer-events: auto; }
+    .sheet-open .sheet-panel { transform: translateY(0); }
+    .sheet-closed .sheet-mask { opacity: 0; pointer-events: none; }
+    .sheet-closed .sheet-panel { transform: translateY(100%); }
+  </style>
+</head>
+<body>
+  <!-- 布局由 simulator-layout.js 自动创建 -->
+  <script src="./simulator-layout.js"></script>
+  <script src="./common.js"></script>
+  <script>
+    // 初始化布局
+    initSimulatorLayout({
+      title: '审批中心 · 监护/主管',
+      titleIcon: 'fas fa-check-square',
+      role: 'director',
+      activeNav: 'operate',
+      content: `
+        <div class="flex flex-col h-full relative overflow-hidden">
+          <!-- 顶部搜索和筛选区 -->
+          <div class="bg-white shadow-sm z-10 flex flex-col">
+            <div class="px-4 py-3 flex gap-3 border-b border-gray-50">
+              <div class="relative flex-1">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input id="search" type="text" placeholder="搜索任务号" 
+                  class="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-gray-700 placeholder-gray-400">
+              </div>
+              <div class="relative flex-none" id="filterTypeTrigger">
+                <div class="h-full px-3 py-2.5 bg-gray-50 border-0 rounded-xl text-sm text-gray-700 flex items-center cursor-pointer active:bg-gray-100 transition-colors gap-2">
+                  <span id="filterTypeText" class="truncate max-w-[5rem]">所有类别</span>
+                  <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                </div>
+              </div>
+            </div>
+            <div class="flex px-4">
+              <button id="tabPending" class="flex-1 py-3 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 transition-colors" onclick="switchTab('pending')">待审批</button>
+              <button id="tabApproved" class="flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent transition-colors" onclick="switchTab('approved')">已通过</button>
+              <button id="tabRejected" class="flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent transition-colors" onclick="switchTab('rejected')">已拒绝</button>
+            </div>
+          </div>
+
+          <!-- 审批列表容器 -->
+          <div id="approvalList" class="flex-1 overflow-y-auto p-4 space-y-3 pb-24 bg-gray-50/50 scrollbar-hide"></div>
+
+          <!-- 审批详情 Sheet -->
+          <div id="sheetContainer" class="sheet-closed absolute inset-0 z-50 flex flex-col justify-end pointer-events-none">
+            <div id="sheetMask" class="sheet-mask absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+            <div class="sheet-panel relative bg-white w-full rounded-t-3xl shadow-2xl pointer-events-auto max-h-[85vh] flex flex-col">
+              
+              <!-- Sheet Header -->
+              <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div>
+                  <div class="text-xs text-gray-400">审批事项</div>
+                  <div id="shTitle" class="text-lg font-bold text-gray-800">--</div>
+                </div>
+                <button id="shClose" class="w-8 h-8 rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+
+              <!-- Sheet Body -->
+              <div id="shBody" class="p-6 overflow-y-auto scrollbar-hide space-y-4">
+                <!-- Content injected by JS -->
+              </div>
+
+              <!-- Sheet Footer -->
+              <div class="p-4 border-t border-gray-50 bg-white pb-8">
+                <div class="flex gap-3">
+                  <button id="shReject" class="flex-1 py-3.5 rounded-xl bg-red-50 text-red-600 font-medium border border-red-100 active:scale-[0.98] transition-all flex items-center justify-center">
+                    <i class="fas fa-times-circle mr-2"></i>拒绝
+                  </button>
+                  <button id="shApprove" class="flex-1 py-3.5 rounded-xl bg-indigo-600 text-white font-medium shadow-lg shadow-indigo-200 active:scale-[0.98] transition-all flex items-center justify-center">
+                    <i class="fas fa-check-circle mr-2"></i>同意
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+    });
+
+    // 页面逻辑
+    let currentStatusFilter = 'pending';
+    let currentTypeFilter = 'all';
+
+    // Tab Logic
+    function switchTab(status){
+        currentStatusFilter = status;
+        
+        // Update UI
+        ['Pending','Approved','Rejected'].forEach(s=>{
+           const btn = document.getElementById('tab'+s);
+           const key = s.toLowerCase();
+           if(key === status){
+               btn.className = 'flex-1 py-3 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 transition-colors';
+           } else {
+               btn.className = 'flex-1 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent transition-colors';
+           }
+        });
+        
+        renderApprovals();
+    }
+
+    // Type Filter Panel
+    const typeOptions = [
+        { value: 'all', label: '所有类别' },
+        { value: 'force_complete', label: '强制完成' },
+        { value: 'pack_change', label: '包装更改' },
+        { value: 'call_resume', label: '叫车/队列恢复' },
+        { value: 'door_assign_change', label: '库门安排/更改' },
+        { value: 'pause', label: '暂停作业' },
+        { value: 'queue_limit', label: '队列限制' },
+        { value: 'resume', label: '解冻作业' },
+        { value: 'queue_unfreeze', label: '解冻队列' },
+        { value: 'oversize_call_unload', label: '大件叫车/卸货' },
+        { value: 'issue', label: '异常管理' }
+    ];
+
+    const typePanel = window.createSelectionPanel({
+        id: 'typePanel',
+        title: '筛选类别',
+        confirmText: '确认筛选',
+        onConfirm: function(val){
+            if(!val) return;
+            currentTypeFilter = val;
+            const label = typeOptions.find(o=>o.value===val)?.label || val;
+            document.getElementById('filterTypeText').textContent = label;
+            typePanel.close();
+            renderApprovals();
+        }
+    });
+
+    document.getElementById('filterTypeTrigger').onclick = function(){
+        typePanel.open(typeOptions, currentTypeFilter);
+    };
+
+    let appData = null;
+    function loadData(){ 
+      if(appData) return Promise.resolve(appData); 
+      const url=new URL('app-data.json',document.baseURI).href; 
+      if(location.protocol==='file:'){ 
+        appData = (window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{} }); 
+        return Promise.resolve(appData); 
+      } 
+      return fetch(url).then(r=>{ 
+        if(!r.ok) throw new Error('fail'); 
+        return r.json(); 
+      }).then(d=>{ 
+        appData=d; 
+        return d; 
+      }).catch(()=>{ 
+        appData = (window.APP_DATA_FALLBACK||{ approvals:[], operatorTaskDetails:{} }); 
+        return appData; 
+      }); 
+    }
+
+    function labelOf(t){ if(t==='force_complete') return '强制完成'; if(t==='pause') return '暂停'; if(t==='resume') return '解冻'; if(t==='issue') return '异常管理'; if(t==='pack_change') return '包装更改'; if(t==='call_resume') return '叫车/队列恢复'; if(t==='door_assign_change') return '库门安排/更改'; if(t==='queue_limit') return '队列限制'; if(t==='queue_unfreeze') return '解冻队列'; if(t==='oversize_call_unload') return '大件叫车/卸货'; return t; }
+    function statusBadge(s){ 
+      if(s==='approved') return `<span class='inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-green-50 text-green-700 border border-green-100'><i class='fas fa-check-circle text-[10px]'></i>已通过</span>`; 
+      if(s==='rejected') return `<span class='inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-red-50 text-red-700 border border-red-100'><i class='fas fa-times-circle text-[10px]'></i>已拒绝</span>`; 
+      return `<span class='inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-100'><i class='fas fa-clock text-[10px]'></i>待审批</span>`; 
+    }
+
+    function buildRow(a){ 
+      const d=(appData.operatorTaskDetails||{}); 
+      const td=d[a.task_id]||{}; 
+      const row=document.createElement('div'); 
+      row.className='bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:scale-[0.99] transition-transform cursor-pointer group relative overflow-hidden'; 
+      
+      const typeLabel=labelOf(a.type); 
+      const applyUser = (a.apply_user||'系统').replace('主管', '调度');
+      const applyInfo=`${applyUser} · ${formatTime(a.apply_time)}`; 
+      const tcat=(td.category||'').trim(); 
+      
+      // Generate an icon based on type
+      let iconClass = 'fa-clipboard-list';
+      let iconColor = 'text-indigo-500 bg-indigo-50';
+      if(a.type==='force_complete') { iconClass='fa-forward'; iconColor='text-red-500 bg-red-50'; }
+      else if(a.type==='pause') { iconClass='fa-pause'; iconColor='text-orange-500 bg-orange-50'; }
+      else if(a.type.includes('resume')) { iconClass='fa-play'; iconColor='text-green-500 bg-green-50'; }
+      else if(a.type==='issue') { iconClass='fa-exclamation-triangle'; iconColor='text-yellow-500 bg-yellow-50'; }
+
+      row.innerHTML=`
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full ${iconColor} flex items-center justify-center flex-none mt-0.5">
+            <i class="fas ${iconClass}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1">
+              <div class="font-bold text-gray-800 truncate pr-2">${typeLabel}</div>
+              <div class="flex-none">${statusBadge(a.status)}</div>
+            </div>
+            <div class="text-sm text-gray-600 mb-2 truncate">任务号: <span class="font-mono text-gray-500">${a.task_id}</span></div>
+            
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-gray-50">
+              <div class="text-gray-400 flex items-center gap-1">
+                <i class="fas fa-user-circle"></i> ${applyUser}
+                <span class="mx-1 text-gray-300">|</span>
+                <i class="far fa-clock"></i> ${formatTimeShort(a.apply_time)}
+              </div>
+              ${a.status==='pending' ? '<div class="text-indigo-600 font-medium flex items-center">去处理 <i class="fas fa-chevron-right ml-1 text-[10px]"></i></div>' : ''}
+            </div>
+          </div>
+        </div>
+      `; 
+      
+      row.onclick=function(e){ 
+        // If clicking task ID link (if we had one), don't open sheet
+        // But here entire row opens sheet
+        openSheet(a.id); 
+      }; 
+      return row; 
+    }
+
+    function formatTime(t){ return t||'--'; }
+    function formatTimeShort(t){ if(!t) return '--'; return t.split(' ')[1]||t; }
+
+    function renderApprovals(){ 
+      const list=document.getElementById('approvalList'); 
+      list.innerHTML=''; 
+      const q=(document.getElementById('search').value||'').trim().toLowerCase(); 
+      const fs=currentStatusFilter; 
+      const ft=currentTypeFilter; 
+      
+      let arr=(appData.approvals||[]).slice(); 
+      
+      if(q){ arr=arr.filter(a=> (a.task_id||'').toLowerCase().includes(q) || (labelOf(a.type)||'').toLowerCase().includes(q)); } 
+      if(fs!=='all'){ arr=arr.filter(a=> a.status===fs); } 
+      if(ft!=='all'){ arr=arr.filter(a=> a.type===ft); } 
+      
+      if(arr.length===0){ 
+        list.innerHTML=`
+          <div class='flex flex-col items-center justify-center py-16 text-gray-400'>
+            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <i class="fas fa-clipboard-check text-3xl text-gray-300"></i>
+            </div>
+            <div class="text-sm font-medium">暂无相关审批</div>
+          </div>`; 
+        return; 
+      } 
+      
+      arr.forEach(a=>{ list.appendChild(buildRow(a)); }); 
+    }
+
+    // Sheet Logic
+    function ensureSheet(){ return { mask:document.getElementById('sheetMask'), sheet:document.getElementById('sheetContainer') }; }
+    
+    function sheetFieldsOfReadonly(a){ 
+      var b=document.getElementById('shBody'); 
+      if(!b) return; 
+      b.innerHTML=''; 
+      
+      var d=(appData&&appData.operatorTaskDetails)||{}; 
+      var td=d[a.task_id]||{}; 
+      
+      function infoItem(label, val, isLink=false){
+        return `
+          <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div class="text-xs text-gray-400 mb-1">${label}</div>
+            <div class="text-sm font-medium text-gray-800 break-all">
+              ${isLink ? `<a href='director-task-detail.html?task_id=${encodeURIComponent(val)}&origin=approval' class='text-indigo-600 flex items-center gap-1'>${val} <i class="fas fa-external-link-alt text-xs"></i></a>` : (val||'--')}
+            </div>
+          </div>
+        `;
+      }
+      
+      let content = '';
+      content += `<div class="grid grid-cols-2 gap-3">`;
+      content += infoItem('任务号', a.task_id, true);
+      content += infoItem('当前状态', td.state);
+      content += `</div>`;
+      
+      content += `<div class="grid grid-cols-2 gap-3 mt-3">`;
+      content += infoItem('申请人', a.apply_user);
+      content += infoItem('申请时间', a.apply_time);
+      content += `</div>`;
+      
+      content += `<div class="mt-3">`;
+      content += infoItem('详细说明', a.desc);
+      content += `</div>`;
+      
+      // Add extra context based on type if needed
+      if(a.type==='force_complete'){
+         content += `<div class="mt-3 bg-red-50 p-3 rounded-xl border border-red-100 text-red-700 text-xs flex items-start gap-2">
+           <i class="fas fa-exclamation-circle mt-0.5"></i>
+           <span>警告：强制完成将跳过剩余流程直接结束任务，请谨慎操作。</span>
+         </div>`;
+      }
+
+      b.innerHTML = content; 
+    }
+
+    function openSheet(id){ 
+      const arr=(appData.approvals||[]); 
+      const a=arr.find(x=>x.id===id); 
+      if(!a) return; 
+      
+      document.getElementById('shTitle').textContent = labelOf(a.type); 
+      sheetFieldsOfReadonly(a); 
+      
+      const container = document.getElementById('sheetContainer');
+      container.classList.remove('sheet-closed');
+      container.classList.add('sheet-open');
+      
+      const btnOk=document.getElementById('shApprove'); 
+      const btnReject=document.getElementById('shReject'); 
+      
+      if(a.status !== 'pending'){
+        btnOk.parentElement.style.display = 'none'; // Hide buttons if already processed
+      } else {
+        btnOk.parentElement.style.display = 'flex';
+        btnOk.onclick=function(){ 
+          a.status='approved'; 
+          toastShow('已同意 '+labelOf(a.type),'ok'); 
+          closeSheet(); 
+          setTimeout(renderApprovals, 300); 
+        }; 
+        btnReject.onclick=function(){ 
+          a.status='rejected'; 
+          toastShow('已拒绝 '+labelOf(a.type),'warn'); 
+          closeSheet(); 
+          setTimeout(renderApprovals, 300); 
+        }; 
+      }
+    }
+    
+    function closeSheet(){ 
+      const container = document.getElementById('sheetContainer');
+      container.classList.remove('sheet-open');
+      container.classList.add('sheet-closed');
+    }
+    
+    document.getElementById('sheetMask').onclick = closeSheet;
+    document.getElementById('shClose').onclick = closeSheet;
+
+    document.getElementById('search').oninput=function(){ renderApprovals(); };
+    // document.getElementById('filterStatus').onchange=function(){ renderApprovals(); }; // Removed
+    // document.getElementById('filterType').onchange=function(){ renderApprovals(); }; // Removed
+
+    const qParam = new URLSearchParams(window.location.search).get('q');
+    if(qParam){ document.getElementById('search').value = qParam; }
+    
+    loadData().then(()=>{ renderApprovals(); });
+  </script>
+</body>
+</html>
